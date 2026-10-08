@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>SpendWise Admin</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    .glass {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+    }
+
+    .notification-panel {
+      animation: slideDown 0.2s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">
+          SpendWise Admin
+        </h1>
+
+        <p class="text-sm text-gray-500">
+          User management dashboard
+        </p>
+      </div>
+
+      <!-- NOTIFICATION -->
+      <div class="relative">
+
+        <button
+          id="notificationBtn"
+          onclick="toggleNotifications()"
+          class="relative w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-2xl"
+        >
+          🔔
+
+          <span
+            id="notificationBadge"
+            class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold min-w-[22px] h-[22px] rounded-full flex items-center justify-center"
+          >
+            0
+          </span>
+        </button>
+
+        <!-- NOTIFICATION PANEL -->
+        <div
+          id="notificationPanel"
+          class="hidden notification-panel absolute right-0 mt-3 w-[350px] max-w-[90vw] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+        >
+
+          <div class="px-5 py-4 border-b flex justify-between items-center">
+
+            <div>
+              <h2 class="font-bold text-lg">
+                Notifications
+              </h2>
+
+              <p class="text-xs text-gray-500">
+                New users waiting for approval
+              </p>
+            </div>
+
+            <span
+              id="notificationCount"
+              class="text-sm font-bold text-red-600"
+            >
+              0 pending
+            </span>
+
+          </div>
+
+          <div
+            id="notificationList"
+            class="max-h-[400px] overflow-y-auto"
+          >
+            <div class="p-5 text-sm text-gray-500">
+              No new notifications.
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- MAIN -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+
+    <!-- STATS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+      <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <p class="text-sm text-gray-500">
+          Total Users
+        </p>
+
+        <p
+          id="totalUsers"
+          class="text-3xl font-bold mt-2"
+        >
+          0
+        </p>
+      </div>
+
+
+      <div class="bg-white rounded-2xl p-5 shadow-sm">
+
+        <p class="text-sm text-gray-500">
+          Pending
+        </p>
+
+        <p
+          id="pendingUsers"
+          class="text-3xl font-bold text-orange-500 mt-2"
+        >
+          0
+        </p>
+
+      </div>
+
+
+      <div class="bg-white rounded-2xl p-5 shadow-sm">
+
+        <p class="text-sm text-gray-500">
+          Approved
+        </p>
+
+        <p
+          id="approvedUsers"
+          class="text-3xl font-bold text-green-600 mt-2"
+        >
+          0
+        </p>
+
+      </div>
+
+
+      <div class="bg-white rounded-2xl p-5 shadow-sm">
+
+        <p class="text-sm text-gray-500">
+          Suspended
+        </p>
+
+        <p
+          id="suspendedUsers"
+          class="text-3xl font-bold text-red-600 mt-2"
+        >
+          0
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <!-- USERS -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+
+      <div class="px-5 py-5 border-b">
+
+        <h2 class="text-xl font-bold">
+          Users
+        </h2>
+
+        <p class="text-sm text-gray-500 mt-1">
+          Manage SpendWise users
+        </p>
+
+      </div>
+
+
+      <!-- MOBILE FRIENDLY USER LIST -->
+      <div id="usersContainer" class="divide-y">
+
+        <div class="p-8 text-center text-gray-500">
+          Loading users...
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!-- TOAST -->
+  <div
+    id="toast"
+    class="fixed bottom-5 right-5 hidden bg-gray-900 text-white px-5 py-4 rounded-xl shadow-xl z-[100]"
+  ></div>
+
+
+<script>
+
+const supabaseClient = window.supabase.createClient(
+  window.SPENDWISE_CONFIG.SUPABASE_URL,
+  window.SPENDWISE_CONFIG.SUPABASE_ANON_KEY
+);
+
+
+let allUsers = [];
+let previousPendingCount = null;
+let notificationOpen = false;
+
+
+// ============================================
+// TOAST
+// ============================================
+
+function showToast(message) {
+
+  const toast = document.getElementById("toast");
+
+  toast.textContent = message;
+
+  toast.classList.remove("hidden");
+
+  setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 4000);
+}
+
+
+// ============================================
+// BROWSER NOTIFICATIONS
+// ============================================
+
+async function enableNotifications() {
+
+  if (!("Notification" in window)) {
+    return;
+  }
+
+  if (Notification.permission === "default") {
+
+    try {
+      await Notification.requestPermission();
+    } catch (error) {
+      console.log(error);
+    }
+
+  }
+}
+
+
+function sendBrowserNotification(count) {
+
+  if (!("Notification" in window)) {
+    return;
+  }
+
+  if (Notification.permission !== "granted") {
+    return;
+  }
+
+  new Notification(
+    "SpendWise — New User",
+    {
+      body:
+        count === 1
+          ? "A new user is waiting for approval."
+          : `${count} users are waiting for approval.`,
+      icon: "https://cdn-icons-png.flaticon.com/512/1077/1077114.png"
+    }
+  );
+}
+
+
+// ============================================
+// NOTIFICATION PANEL
+// ============================================
+
+function toggleNotifications() {
+
+  const panel = document.getElementById("notificationPanel");
+
+  notificationOpen = !notificationOpen;
+
+  if (notificationOpen) {
+
+    panel.classList.remove("hidden");
+
+  } else {
+
+    panel.classList.add("hidden");
+
+  }
+
+}
+
+
+function updateNotificationPanel() {
+
+  const pending = allUsers.filter(
+    user => user.status === "pending"
+  );
+
+  const badge = document.getElementById("notificationBadge");
+
+  const countText = document.getElementById("notificationCount");
+
+  const list = document.getElementById("notificationList");
+
+
+  // Badge
+
+  if (pending.length > 0) {
+
+    badge.textContent = pending.length;
+
+    badge.classList.remove("hidden");
+
+  } else {
+
+    badge.classList.add("hidden");
+
+  }
+
+
+  countText.textContent =
+    `${pending.length} pending`;
+
+
+  // List
+
+  if (pending.length === 0) {
+
+    list.innerHTML = `
+      <div class="p-5 text-sm text-gray-500">
+        🎉 No users waiting for approval.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  list.innerHTML = pending.map(user => `
+
+    <div class="p-4 border-b">
+
+      <div class="font-semibold text-gray-900">
+        ${escapeHtml(user.email || "Unknown user")}
+      </div>
+
+      <div class="text-xs text-gray-500 mt-1">
+        Registered:
+        ${formatDate(user.created_at)}
+      </div>
+
+      <div class="flex gap-2 mt-3">
+
+        <button
+          onclick="changeUserStatus('${user.id}', 'approved')"
+          class="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold py-2 rounded-lg"
+        >
+          Approve
+        </button>
+
+        <button
+          onclick="changeUserStatus('${user.id}', 'rejected')"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 rounded-lg"
+        >
+          Reject
+        </button>
+
+      </div>
+
+    </div>
+
+  `).join("");
+
+}
+
+
+// ============================================
+// LOAD USERS
+// ============================================
+
+async function loadUsers(isFirstLoad = false) {
+
+  try {
+
+    const {
+      data,
+      error
+    } = await supabaseClient.rpc(
+      "admin_get_all_profiles"
+    );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    allUsers = data || [];
+
+
+    const pendingCount = allUsers.filter(
+      user => user.status === "pending"
+    ).length;
+
+
+    // Detect NEW pending users
+
+    if (
+      !isFirstLoad &&
+      previousPendingCount !== null &&
+      pendingCount > previousPendingCount
+    ) {
+
+      const newUsers =
+        pendingCount - previousPendingCount;
+
+      showToast(
+        newUsers === 1
+          ? "🔔 A new user is waiting for approval!"
+          : `🔔 ${newUsers} new users are waiting for approval!`
+      );
+
+      sendBrowserNotification(newUsers);
+
+    }
+
+
+    previousPendingCount = pendingCount;
+
+
+    updateStats();
+
+    updateNotificationPanel();
+
+    renderUsers();
+
+  } catch (error) {
+
+    console.error(
+      "Failed to load users:",
+      error
+    );
+
+    showToast(
+      "Unable to load users."
+    );
+
+  }
+
+}
+
+
+// ============================================
+// STATS
+// ============================================
+
+function updateStats() {
+
+  const total = allUsers.length;
+
+  const pending =
+    allUsers.filter(
+      u => u.status === "pending"
+    ).length;
+
+  const approved =
+    allUsers.filter(
+      u => u.status === "approved"
+    ).length;
+
+  const suspended =
+    allUsers.filter(
+      u => u.status === "suspended"
+    ).length;
+
+
+  document.getElementById(
+    "totalUsers"
+  ).textContent = total;
+
+  document.getElementById(
+    "pendingUsers"
+  ).textContent = pending;
+
+  document.getElementById(
+    "approvedUsers"
+  ).textContent = approved;
+
+  document.getElementById(
+    "suspendedUsers"
+  ).textContent = suspended;
+
+}
+
+
+// ============================================
+// RENDER USERS
+// ============================================
+
+function renderUsers() {
+
+  const container =
+    document.getElementById(
+      "usersContainer"
+    );
+
+
+  if (allUsers.length === 0) {
+
+    container.innerHTML = `
+      <div class="p-8 text-center text-gray-500">
+        No users found.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML = allUsers.map(user => {
+
+    let statusClass =
+      "bg-gray-100 text-gray-700";
+
+    if (user.status === "approved") {
+      statusClass =
+        "bg-green-100 text-green-700";
+    }
+
+    if (user.status === "pending") {
+      statusClass =
+        "bg-orange-100 text-orange-700";
+    }
+
+    if (user.status === "rejected") {
+      statusClass =
+        "bg-red-100 text-red-700";
+    }
+
+    if (user.status === "suspended") {
+      statusClass =
+        "bg-purple-100 text-purple-700";
+    }
+
+
+    return `
+
+      <div class="p-5 hover:bg-gray-50">
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+          <div class="min-w-0">
+
+            <div class="font-semibold text-gray-900 break-all">
+              ${escapeHtml(user.email || "No email")}
+            </div>
+
+            <div class="text-xs text-gray-500 mt-1">
+              Created:
+              ${formatDate(user.created_at)}
+            </div>
+
+            ${
+              user.full_name
+                ? `
+                  <div class="text-sm text-gray-600 mt-1">
+                    ${escapeHtml(user.full_name)}
+                  </div>
+                `
+                : ""
+            }
+
+          </div>
+
+
+          <div class="flex flex-wrap items-center gap-2">
+
+            <span
+              class="px-3 py-1 rounded-full text-xs font-semibold ${statusClass}"
+            >
+              ${escapeHtml(user.status)}
+            </span>
+
+
+            ${
+              user.status === "pending"
+                ? `
+                  <button
+                    onclick="changeUserStatus('${user.id}', 'approved')"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold"
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    onclick="changeUserStatus('${user.id}', 'rejected')"
+                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold"
+                  >
+                    Reject
+                  </button>
+                `
+                : ""
+            }
+
+
+            ${
+              user.status === "approved"
+                ? `
+                  <button
+                    onclick="changeUserStatus('${user.id}', 'suspended')"
+                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold"
+                  >
+                    Suspend
+                  </button>
+                `
+                : ""
+            }
+
+
+            ${
+              user.status === "suspended"
+                ? `
+                  <button
+                    onclick="changeUserStatus('${user.id}', 'approved')"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold"
+                  >
+                    Restore
+                  </button>
+                `
+                : ""
+            }
+
+          </div>
+
+        </div>
+
+      </div>
+
+    `;
+
+  }).join("");
+
+}
+
+
+// ============================================
+// CHANGE USER STATUS
+// ============================================
+
+async function changeUserStatus(
+  userId,
+  newStatus
+) {
+
+  const actionText =
+    newStatus === "approved"
+      ? "approve"
+      : newStatus === "rejected"
+      ? "reject"
+      : newStatus === "suspended"
+      ? "suspend"
+      : "change";
+
+
+  const confirmed =
+    confirm(
+      `Are you sure you want to ${actionText} this user?`
+    );
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  try {
+
+    const {
+      error
+    } = await supabaseClient.rpc(
+      "admin_set_user_status",
+      {
+        target_user_id: userId,
+        new_status: newStatus
+      }
+    );
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    showToast(
+      `User ${newStatus} successfully.`
+    );
+
+
+    await loadUsers(true);
+
+  } catch (error) {
+
+    console.error(
+      "Status update failed:",
+      error
+    );
+
+    showToast(
+      error.message ||
+      "Failed to update user."
+    );
+
+  }
+
+}
+
+
+// ============================================
+// HELPERS
+// ============================================
+
+function formatDate(date) {
+
+  if (!date) {
+    return "Unknown";
+  }
+
+  return new Date(date).toLocaleString();
+}
+
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+
+// ============================================
+// AUTH CHECK
+// ============================================
+
+async function checkAdmin() {
+
+  const {
+    data: {
+      session
+    }
+  } = await supabaseClient.auth.getSession();
+
+
+  if (!session) {
+
+    document.body.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center p-6">
+        <div class="bg-white p-8 rounded-2xl shadow text-center max-w-md">
+          <div class="text-5xl mb-4">
+            🔒
+          </div>
+
+          <h1 class="text-2xl font-bold">
+            Admin Login Required
+          </h1>
+
+          <p class="text-gray-500 mt-2">
+            Please sign in with your approved admin account.
+          </p>
+        </div>
+      </div>
+    `;
+
+    return false;
+  }
+
+
+  return true;
+
+}
+
+
+// ============================================
+// START
+// ============================================
+
+async function startAdmin() {
+
+  const isAdmin =
+    await checkAdmin();
+
+  if (!isAdmin) {
+    return;
+  }
+
+
+  // Ask permission for browser notifications
+
+  enableNotifications();
+
+
+  // Initial load
+
+  await loadUsers(true);
+
+
+  // Check every 10 seconds
+
+  setInterval(
+    () => loadUsers(false),
+    10000
+  );
+
+}
+
+
+startAdmin();
+
+</script>
+
+</body>
+</html>

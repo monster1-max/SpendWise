@@ -1,0 +1,1 @@
+SpendWise V5: single-file Tailwind expense tracker. Expenses use browser localStorage. No backend is required for core recording.

@@ -1,0 +1,1772 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta name="description" content="SpendWise is a simple and powerful expense tracker that helps you track, organize, search, and manage your daily expenses.">
+
+<meta name="keywords" content="SpendWise, expense tracker, expense management, track expenses, personal finance, budget tracker">
+
+<meta name="author" content="SpendWise">
+
+<meta name="robots" content="index, follow">
+
+<meta property="og:title" content="SpendWise — Expense Tracker">
+
+<meta property="og:description" content="Track, organize, search, and manage your daily expenses with SpendWise.">
+
+<meta property="og:type" content="website">
+
+<link rel="canonical" href="https://entc221group10project.netlify.app/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>SpendWise — Expense Tracker</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        display: ['Inter', 'ui-sans-serif', 'system-ui']
+      }
+    }
+  }
+};
+</script>
+
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  min-height:100%;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
+}
+body{background:#f1f5f9;color:#0f172a}
+.view{display:none}
+.view.active{display:block}
+.modal{display:none}
+.modal.open{display:flex}
+.nav-active{background:rgba(139,92,246,.2)!important;color:#fff!important}
+.toast{
+  opacity:0;
+  transform:translate(-50%,20px);
+  pointer-events:none;
+  transition:all .25s ease
+}
+.toast.show{
+  opacity:1;
+  transform:translate(-50%,0)
+}
+body>div:first-child{
+  display:flex;
+  min-height:100vh;
+  width:100%
+}
+#sidebar{
+  position:fixed;
+  left:0;
+  top:0;
+  bottom:0;
+  width:256px;
+  height:100vh;
+  background:#020617;
+  color:#fff;
+  padding:20px;
+  z-index:40;
+  transform:translateX(0);
+  transition:transform .25s ease;
+  overflow-y:auto
+}
+main{
+  min-width:0;
+  flex:1;
+  margin-left:256px;
+  width:calc(100% - 256px)
+}
+main>header{
+  position:sticky;
+  top:0;
+  z-index:20;
+  min-height:72px;
+  background:rgba(255,255,255,.94);
+  border-bottom:1px solid #e2e8f0;
+  backdrop-filter:blur(10px)
+}
+main>.mx-auto{
+  width:100%;
+  max-width:1280px;
+  margin-left:auto;
+  margin-right:auto
+}
+.flex{display:flex}
+.grid{display:grid}
+.hidden{display:none!important}
+.block{display:block}
+.min-w-0{min-width:0}
+.flex-1{flex:1}
+.w-full{width:100%}
+.h-full{height:100%}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea,button{font:inherit}
+
+#dashboardView>div:first-child{
+  border-radius:24px;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5,#2563eb);
+  padding:32px;
+  color:#fff;
+  box-shadow:0 10px 30px rgba(15,23,42,.12)
+}
+#dashboardView .mt-5{margin-top:20px}
+#dashboardView .sm\:grid-cols-3{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+}
+#dashboardView .lg\:grid-cols-\[1\.5fr_1fr\]{
+  grid-template-columns:1.5fr 1fr
+}
+#expensesView .md\:grid-cols-3{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+}
+#analyticsView .sm\:grid-cols-3{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+}
+#expenseModal,#authModal{
+  align-items:center;
+  justify-content:center
+}
+#expenseModal>div,#authModal>div{
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:0 25px 60px rgba(0,0,0,.25);
+  width:min(100%,512px)
+}
+#expenseModal{background:rgba(0,0,0,.6)}
+#authModal{background:rgba(0,0,0,.7)}
+
+@media(max-width:1023px){
+  #sidebar{
+    transform:translateX(-100%);
+    width:280px
+  }
+  #sidebar.open{
+    transform:translateX(0)
+  }
+  main{
+    margin-left:0;
+    width:100%
+  }
+  #overlay{display:none}
+  #overlay:not(.hidden){display:block}
+  main>header{padding:12px 16px}
+}
+@media(min-width:1024px){
+  #sidebar{transform:translateX(0)}
+  #overlay{display:none!important}
+}
+@media(max-width:767px){
+  #dashboardView .sm\:grid-cols-3,
+  #analyticsView .sm\:grid-cols-3{
+    grid-template-columns:1fr
+  }
+  #dashboardView .lg\:grid-cols-\[1\.5fr_1fr\]{
+    grid-template-columns:1fr
+  }
+  #expensesView .md\:grid-cols-3{
+    grid-template-columns:1fr
+  }
+  #dashboardView>div:first-child{padding:24px}
+}
+@media(max-width:640px){
+  #sidebar{width:280px}
+  main>.mx-auto{padding:16px}
+  #expenseModal>div,#authModal>div{
+    max-height:90vh;
+    overflow-y:auto
+  }
+}
+</style>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
+
+<div class="flex min-h-screen">
+
+<aside
+  id="sidebar"
+  class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full bg-slate-950 p-5 text-white transition-transform lg:static lg:translate-x-0"
+>
+  <div class="flex h-full flex-col">
+
+    <button
+      type="button"
+      onclick="showView('dashboard')"
+      class="mb-8 flex items-center gap-3 text-left"
+    >
+      <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 text-xl font-black">
+        S
+      </span>
+
+      <span>
+        <b class="block text-xl">SpendWise</b>
+        <small class="text-slate-400">Expense tracker</small>
+      </span>
+    </button>
+
+    <nav class="space-y-2">
+
+      <button
+        type="button"
+        onclick="showView('dashboard')"
+        data-nav="dashboard"
+        class="nav-btn nav-active w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
+      >
+        ⌂ &nbsp; Overview
+      </button>
+
+      <button
+        type="button"
+        onclick="showView('expenses')"
+        data-nav="expenses"
+        class="nav-btn w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
+      >
+        ↗ &nbsp; Transactions
+      </button>
+
+      <button
+        type="button"
+        onclick="showView('analytics')"
+        data-nav="analytics"
+        class="nav-btn w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
+      >
+        ◒ &nbsp; Analytics
+      </button>
+
+    </nav>
+
+    <div class="mt-auto space-y-2">
+
+      <button
+        type="button"
+        onclick="toggleTheme()"
+        class="w-full rounded-xl border border-white/10 px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
+      >
+        ◐ &nbsp; Appearance
+      </button>
+
+      <div class="rounded-2xl bg-white/5 p-3">
+
+        <div id="accountStatus" class="text-sm font-bold">
+          Checking connection...
+        </div>
+
+        <div id="accountHint" class="text-xs text-slate-400">
+          Connecting to SpendWise cloud...
+        </div>
+
+        <button
+          id="accountButton"
+          type="button"
+          class="mt-2 text-xs font-bold text-violet-300"
+        >
+          Sign in
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</aside>
+
+<div
+  id="overlay"
+  onclick="closeMenu()"
+  class="fixed inset-0 z-30 hidden bg-black/50 lg:hidden"
+></div>
+
+<main class="min-w-0 flex-1">
+
+<header
+  class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-8"
+>
+
+  <div class="flex items-center gap-3">
+
+    <button
+      type="button"
+      onclick="openMenu()"
+      class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 lg:hidden dark:border-slate-800"
+    >
+      ☰
+    </button>
+
+    <div>
+      <p
+        id="pageEyebrow"
+        class="text-xs font-bold uppercase tracking-widest text-violet-600"
+      >
+        OVERVIEW
+      </p>
+
+      <h1 id="pageTitle" class="text-xl font-black">
+        Good day 👋
+      </h1>
+    </div>
+
+  </div>
+
+  <div class="flex items-center gap-2">
+
+    <button
+      type="button"
+      onclick="openAuth()"
+      class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+    >
+      Account
+    </button>
+
+    <button
+      type="button"
+      onclick="openExpense()"
+      class="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg"
+    >
+      ＋ Add expense
+    </button>
+
+  </div>
+
+</header>
+
+<div class="mx-auto max-w-7xl p-4 sm:p-8">
+
+<section id="dashboardView" class="view active">
+
+  <div class="rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 p-6 text-white shadow-xl sm:p-8">
+
+    <p class="text-sm font-semibold text-violet-100">
+      TOTAL SPENDING
+    </p>
+
+    <div id="totalSpent" class="mt-2 text-4xl font-black sm:text-5xl">
+      ₦0
+    </div>
+
+    <p class="mt-2 text-sm text-violet-100">
+      All recorded expenses
+    </p>
+
+    <button
+      type="button"
+      onclick="openExpense()"
+      class="mt-6 rounded-xl bg-white px-5 py-3 font-bold text-violet-700"
+    >
+      ＋ Record expense
+    </button>
+
+  </div>
+
+  <div class="mt-5 grid gap-4 sm:grid-cols-3">
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">Today</span>
+      <b id="todaySpent" class="mt-2 block text-2xl">₦0</b>
+    </div>
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">This month</span>
+      <b id="monthSpent" class="mt-2 block text-2xl">₦0</b>
+    </div>
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">Average</span>
+      <b id="averageSpent" class="mt-2 block text-2xl">₦0</b>
+    </div>
+
+  </div>
+
+  <div class="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+
+    <section class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+
+      <div class="mb-4 flex items-center justify-between">
+
+        <div>
+          <h2 class="text-lg font-black">
+            Recent transactions
+          </h2>
+
+          <p class="text-sm text-slate-500">
+            Your latest spending.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onclick="showView('expenses')"
+          class="font-bold text-violet-600"
+        >
+          View all →
+        </button>
+
+      </div>
+
+      <div id="recentList" class="space-y-2"></div>
+
+    </section>
+
+    <section class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+
+      <h2 class="text-lg font-black">
+        Top categories
+      </h2>
+
+      <p class="mb-5 text-sm text-slate-500">
+        Where your money goes.
+      </p>
+
+      <div id="topCategories" class="space-y-4"></div>
+
+    </section>
+
+  </div>
+
+</section>
+
+<section id="expensesView" class="view">
+
+  <div class="mb-6 flex items-end justify-between gap-4">
+
+    <div>
+      <p class="text-xs font-bold tracking-widest text-violet-600">
+        TRANSACTIONS
+      </p>
+
+      <h2 class="text-3xl font-black">
+        Every expense, organized.
+      </h2>
+
+      <p class="text-sm text-slate-500">
+        Search, filter, edit and manage your spending.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onclick="openExpense()"
+      class="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
+    >
+      ＋ Add expense
+    </button>
+
+  </div>
+
+  <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+
+    <div class="grid gap-3 md:grid-cols-3">
+
+      <input
+        id="searchInput"
+        oninput="render()"
+        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="Search expenses..."
+      >
+
+      <select
+        id="categoryFilter"
+        onchange="render()"
+        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+      >
+        <option value="">All categories</option>
+        <option>Food</option>
+        <option>Data</option>
+        <option>Clothes</option>
+        <option>Transport</option>
+        <option>Entertainment</option>
+        <option>Bills</option>
+        <option>Shopping</option>
+        <option>Other</option>
+      </select>
+
+      <select
+        id="sortFilter"
+        onchange="render()"
+        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+      >
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="highest">Highest amount</option>
+        <option value="lowest">Lowest amount</option>
+      </select>
+
+    </div>
+
+    <p
+      id="resultCount"
+      class="my-4 border-b border-slate-100 pb-3 text-xs font-semibold text-slate-500"
+    >
+      0 transactions
+    </p>
+
+    <div id="allList" class="space-y-2"></div>
+
+  </div>
+
+</section>
+
+<section id="analyticsView" class="view">
+
+  <div class="mb-6">
+
+    <p class="text-xs font-bold tracking-widest text-violet-600">
+      ANALYTICS
+    </p>
+
+    <h2 class="text-3xl font-black">
+      Your money, visualized.
+    </h2>
+
+    <p class="text-sm text-slate-500">
+      Understand your spending habits.
+    </p>
+
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-3">
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">Top category</span>
+      <b id="topCategory" class="mt-2 block text-xl">—</b>
+      <small id="topCategoryAmount" class="text-slate-400">
+        No data yet
+      </small>
+    </div>
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">Largest expense</span>
+      <b id="largestExpense" class="mt-2 block text-xl">₦0</b>
+      <small id="largestExpenseName" class="text-slate-400">
+        No data yet
+      </small>
+    </div>
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+      <span class="text-sm text-slate-500">Transactions</span>
+      <b id="transactionTotal" class="mt-2 block text-xl">0</b>
+    </div>
+
+  </div>
+
+  <div class="mt-5 rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
+
+    <h2 class="mb-5 text-lg font-black">
+      Spending by category
+    </h2>
+
+    <div id="chart" class="space-y-4"></div>
+
+  </div>
+
+</section>
+
+</div>
+</main>
+</div>
+
+<div
+  id="expenseModal"
+  class="modal fixed inset-0 z-50 items-center justify-center bg-black/60 p-4"
+>
+
+  <div class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+
+    <div class="mb-5 flex items-center justify-between">
+
+      <h2 id="modalTitle" class="text-2xl font-black">
+        Add expense
+      </h2>
+
+      <button
+        type="button"
+        onclick="closeExpense()"
+        class="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl dark:bg-slate-800"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <form id="expenseForm" onsubmit="saveExpense(event)" class="space-y-4">
+
+      <input
+        id="expenseName"
+        required
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="What did you buy? e.g. T-shirt"
+      >
+
+      <input
+        id="expenseAmount"
+        required
+        type="number"
+        min="1"
+        step="1"
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="Amount e.g. 5000"
+      >
+
+      <input
+        id="expenseDate"
+        required
+        type="date"
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+      >
+
+      <select
+        id="expenseCategory"
+        required
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+      >
+        <option value="">Choose category</option>
+        <option>Food</option>
+        <option>Data</option>
+        <option>Clothes</option>
+        <option>Transport</option>
+        <option>Entertainment</option>
+        <option>Bills</option>
+        <option>Shopping</option>
+        <option>Other</option>
+      </select>
+
+      <textarea
+        id="expenseNote"
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="Note (optional)"
+      ></textarea>
+
+      <button
+        type="submit"
+        class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
+      >
+        Save expense
+      </button>
+
+    </form>
+
+  </div>
+</div>
+
+<div
+  id="authModal"
+  class="modal fixed inset-0 z-[80] items-center justify-center bg-black/70 p-4"
+>
+
+  <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+
+    <div class="mb-6 text-center">
+
+      <div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 text-2xl font-black text-white">
+        S
+      </div>
+
+      <h2 id="authTitle" class="text-2xl font-black">
+        Welcome to SpendWise
+      </h2>
+
+      <p id="authSubtitle" class="mt-1 text-sm text-slate-500">
+        Sign in to sync your expenses across devices.
+      </p>
+
+    </div>
+
+    <form id="authForm" class="space-y-4">
+
+      <input
+        id="authEmail"
+        required
+        type="email"
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="Email address"
+      >
+
+      <input
+        id="authPassword"
+        required
+        type="password"
+        minlength="6"
+        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+        placeholder="Password (6+ characters)"
+      >
+
+      <button
+        id="authSubmit"
+        type="submit"
+        class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
+      >
+        Sign in
+      </button>
+
+    </form>
+
+    <button
+      id="authToggle"
+      type="button"
+      class="mt-4 w-full text-sm font-bold text-violet-600"
+    >
+      Create an account instead
+    </button>
+
+    <button
+      id="authClose"
+      type="button"
+      class="mt-2 w-full text-sm text-slate-500"
+    >
+      Continue in local mode
+    </button>
+
+  </div>
+</div>
+
+<div
+  id="toast"
+  class="toast fixed bottom-5 left-1/2 z-[100] rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white shadow-2xl"
+></div>
+
+<script>
+(() => {
+
+  const KEY = 'spendwise_expenses_v5';
+
+  const CONFIG = {
+    url: String(window.SPENDWISE_CONFIG?.SUPABASE_URL || '').trim(),
+    key: String(window.SPENDWISE_CONFIG?.SUPABASE_ANON_KEY || '').trim()
+  };
+
+  let expenses = [];
+  let editingId = null;
+  let authMode = 'signin';
+  let supabaseClient = null;
+  let user = null;
+  let accessMessage = '';
+
+  const $ = id => document.getElementById(id);
+
+  const icons = {
+    Food:'🍔',
+    Data:'📶',
+    Clothes:'👕',
+    Transport:'🚗',
+    Entertainment:'🎮',
+    Bills:'💡',
+    Shopping:'🛍️',
+    Other:'📦'
+  };
+
+  function toast(message){
+    const el = $('toast');
+    if(!el) return;
+
+    el.textContent = message;
+    el.classList.add('show');
+
+    clearTimeout(window._spendwiseToast);
+
+    window._spendwiseToast = setTimeout(() => {
+      el.classList.remove('show');
+    },3500);
+  }
+
+  function money(n){
+    return new Intl.NumberFormat('en-NG',{
+      style:'currency',
+      currency:'NGN',
+      maximumFractionDigits:0
+    }).format(Number(n)||0);
+  }
+
+  function today(){
+    const d = new Date();
+
+    return new Date(
+      d.getTime() - d.getTimezoneOffset()*60000
+    ).toISOString().slice(0,10);
+  }
+
+  function safe(s){
+    return String(s ?? '').replace(
+      /[&<>'"]/g,
+      c => ({
+        '&':'&amp;',
+        '<':'&lt;',
+        '>':'&gt;',
+        "'":'&#39;',
+        '"':'&quot;'
+      }[c])
+    );
+  }
+
+  function persist(){
+    localStorage.setItem(
+      KEY,
+      JSON.stringify(expenses)
+    );
+  }
+
+  try{
+    const saved = JSON.parse(
+      localStorage.getItem(KEY) || '[]'
+    );
+
+    expenses = Array.isArray(saved) ? saved : [];
+  }catch{
+    expenses = [];
+  }
+
+  async function cloudLoad(){
+
+    if(!supabaseClient || !user) return;
+
+    const {data,error} =
+      await supabaseClient
+        .from('expenses')
+        .select('*')
+        .eq('user_id',user.id)
+        .order('expense_date',{ascending:false});
+
+    if(error){
+      console.error('CLOUD LOAD ERROR:',error);
+      toast('Could not load cloud expenses.');
+      return;
+    }
+
+    expenses = (data || []).map(e => ({
+      id:e.id,
+      name:e.name,
+      amount:Number(e.amount),
+      date:e.expense_date,
+      category:e.category,
+      note:e.note || ''
+    }));
+
+    persist();
+    render();
+  }
+
+  async function cloudUpsert(item){
+
+    if(!supabaseClient || !user) return;
+
+    const payload = {
+      id:item.id,
+      user_id:user.id,
+      name:item.name,
+      amount:item.amount,
+      expense_date:item.date,
+      category:item.category,
+      note:item.note || ''
+    };
+
+    const {error} =
+      await supabaseClient
+        .from('expenses')
+        .upsert(payload);
+
+    if(error){
+      console.error('CLOUD SAVE ERROR:',error);
+      toast('Saved locally, but cloud sync failed.');
+    }
+  }
+
+  async function cloudDelete(id){
+
+    if(!supabaseClient || !user) return;
+
+    const {error} =
+      await supabaseClient
+        .from('expenses')
+        .delete()
+        .eq('id',id)
+        .eq('user_id',user.id);
+
+    if(error){
+      console.error('CLOUD DELETE ERROR:',error);
+      toast('Deleted locally, but cloud delete failed.');
+    }
+  }
+
+  window.showView = function(view){
+
+    ['dashboard','expenses','analytics'].forEach(v => {
+
+      const section = $(`${v}View`);
+
+      if(section){
+        section.classList.toggle(
+          'active',
+          v === view
+        );
+      }
+    });
+
+    document.querySelectorAll('[data-nav]').forEach(button => {
+      button.classList.toggle(
+        'nav-active',
+        button.dataset.nav === view
+      );
+    });
+
+    $('pageEyebrow').textContent =
+      view === 'dashboard'
+        ? 'OVERVIEW'
+        : view.toUpperCase();
+
+    $('pageTitle').textContent =
+      view === 'dashboard'
+        ? 'Good day 👋'
+        : view === 'expenses'
+          ? 'Transactions'
+          : 'Analytics';
+
+    closeMenu();
+  };
+
+  window.openMenu = function(){
+    $('sidebar').classList.add('open');
+    $('sidebar').classList.remove('-translate-x-full');
+    $('overlay').classList.remove('hidden');
+  };
+
+  window.closeMenu = function(){
+    $('sidebar').classList.remove('open');
+    $('sidebar').classList.add('-translate-x-full');
+    $('overlay').classList.add('hidden');
+  };
+
+  window.toggleTheme = function(){
+
+    document.documentElement.classList.toggle('dark');
+
+    localStorage.setItem(
+      'spendwise_theme',
+      document.documentElement.classList.contains('dark')
+        ? 'dark'
+        : 'light'
+    );
+  };
+
+  window.openExpense = function(edit){
+
+    if(supabaseClient && !user){
+      toast('Please sign in with an approved SpendWise account first.');
+      openAuth();
+      return;
+    }
+
+    editingId = edit?.id || null;
+
+    $('expenseForm').reset();
+
+    $('expenseDate').value =
+      edit?.date || today();
+
+    if(edit){
+
+      $('modalTitle').textContent = 'Edit expense';
+      $('expenseName').value = edit.name || '';
+      $('expenseAmount').value = edit.amount || '';
+      $('expenseCategory').value = edit.category || '';
+      $('expenseNote').value = edit.note || '';
+
+    }else{
+
+      $('modalTitle').textContent = 'Add expense';
+
+    }
+
+    $('expenseModal').classList.add('open');
+
+    setTimeout(
+      () => $('expenseName').focus(),
+      50
+    );
+  };
+
+  window.closeExpense = function(){
+
+    $('expenseModal').classList.remove('open');
+    editingId = null;
+  };
+
+  window.saveExpense = async function(e){
+
+    e.preventDefault();
+
+    const name = $('expenseName').value.trim();
+    const amount = Number($('expenseAmount').value);
+    const date = $('expenseDate').value;
+    const category = $('expenseCategory').value;
+    const note = $('expenseNote').value.trim();
+
+    if(!name || !amount || amount <= 0 || !date || !category){
+      toast('Please complete all required fields.');
+      return;
+    }
+
+    const wasEditing = !!editingId;
+    const id = editingId || crypto.randomUUID();
+
+    const item = {
+      id,
+      name,
+      amount,
+      date,
+      category,
+      note
+    };
+
+    if(editingId){
+      expenses = expenses.map(x =>
+        String(x.id) === String(editingId)
+          ? item
+          : x
+      );
+    }else{
+      expenses.unshift(item);
+    }
+
+    persist();
+    render();
+    closeExpense();
+
+    toast(
+      wasEditing
+        ? 'Expense updated ✓'
+        : 'Expense recorded ✓'
+    );
+
+    await cloudUpsert(item);
+  };
+
+  window.deleteExpense = async function(id){
+
+    if(!confirm('Delete this expense?')) return;
+
+    expenses = expenses.filter(
+      x => String(x.id) !== String(id)
+    );
+
+    persist();
+    render();
+
+    toast('Expense deleted.');
+
+    await cloudDelete(id);
+  };
+
+  function row(e){
+
+    const editArg =
+      JSON.stringify(e)
+        .replace(/</g,'\\u003c')
+        .replace(/>/g,'\\u003e')
+        .replace(/'/g,'\\u0027');
+
+    return `
+      <div class="flex flex-col gap-3 rounded-xl border border-slate-100 p-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+
+        <div class="flex items-center gap-3">
+
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-violet-100 dark:bg-violet-500/10">
+            ${icons[e.category] || '📦'}
+          </span>
+
+          <div>
+            <b>${safe(e.name)}</b>
+
+            <p class="text-xs text-slate-500">
+              ${safe(e.category)} · ${safe(e.date)}
+            </p>
+          </div>
+
+        </div>
+
+        <div class="flex items-center gap-3">
+
+          <b>${money(e.amount)}</b>
+
+          <button
+            type="button"
+            onclick='openExpense(${editArg})'
+            class="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold dark:bg-slate-800"
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            onclick="deleteExpense('${safe(e.id)}')"
+            class="rounded-lg bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600"
+          >
+            Delete
+          </button>
+
+        </div>
+      </div>
+    `;
+  }
+
+  function cats(){
+
+    const m = {};
+
+    expenses.forEach(e => {
+      m[e.category] =
+        (m[e.category] || 0) +
+        Number(e.amount);
+    });
+
+    return Object.entries(m)
+      .sort((a,b) => b[1] - a[1]);
+  }
+
+  window.render = function(){
+
+    const total =
+      expenses.reduce(
+        (s,e) => s + Number(e.amount),
+        0
+      );
+
+    const t = today();
+    const month = t.slice(0,7);
+
+    $('totalSpent').textContent = money(total);
+
+    $('todaySpent').textContent =
+      money(
+        expenses
+          .filter(e => e.date === t)
+          .reduce(
+            (s,e) => s + Number(e.amount),
+            0
+          )
+      );
+
+    $('monthSpent').textContent =
+      money(
+        expenses
+          .filter(e => e.date?.startsWith(month))
+          .reduce(
+            (s,e) => s + Number(e.amount),
+            0
+          )
+      );
+
+    $('averageSpent').textContent =
+      money(
+        expenses.length
+          ? total / expenses.length
+          : 0
+      );
+
+    let list = [...expenses];
+
+    const q =
+      ($('searchInput')?.value || '').toLowerCase();
+
+    const cat =
+      $('categoryFilter')?.value || '';
+
+    const sort =
+      $('sortFilter')?.value || 'newest';
+
+    list = list.filter(e => {
+
+      const matchesSearch =
+        !q ||
+        [e.name,e.category,e.note,e.date]
+          .some(v =>
+            String(v || '')
+              .toLowerCase()
+              .includes(q)
+          );
+
+      const matchesCategory =
+        !cat || e.category === cat;
+
+      return matchesSearch && matchesCategory;
+    });
+
+    list.sort((a,b) => {
+
+      if(sort === 'highest'){
+        return Number(b.amount) - Number(a.amount);
+      }
+
+      if(sort === 'lowest'){
+        return Number(a.amount) - Number(b.amount);
+      }
+
+      if(sort === 'oldest'){
+        return String(a.date).localeCompare(String(b.date));
+      }
+
+      return String(b.date).localeCompare(String(a.date));
+    });
+
+    $('allList').innerHTML =
+      list.length
+        ? list.map(row).join('')
+        : `
+          <div class="p-8 text-center text-sm text-slate-500">
+            No expenses recorded yet.
+            Click <b>Add expense</b> to start.
+          </div>
+        `;
+
+    $('resultCount').textContent =
+      `${list.length} transaction${list.length === 1 ? '' : 's'}`;
+
+    const recent =
+      [...expenses]
+        .sort(
+          (a,b) =>
+            String(b.date).localeCompare(String(a.date))
+        )
+        .slice(0,6);
+
+    $('recentList').innerHTML =
+      recent.length
+        ? recent.map(row).join('')
+        : `
+          <div class="p-8 text-center text-sm text-slate-500">
+            No expenses yet.
+          </div>
+        `;
+
+    const c = cats();
+    const max = c[0]?.[1] || 1;
+
+    $('topCategories').innerHTML =
+      c.length
+        ? c.slice(0,5).map(([n,v]) => `
+            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+
+              <span class="text-sm font-semibold">
+                ${icons[n] || '📦'} ${safe(n)}
+              </span>
+
+              <span class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                <i
+                  class="block h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500"
+                  style="width:${(v / max) * 100}%"
+                ></i>
+              </span>
+
+              <b>${money(v)}</b>
+            </div>
+          `).join('')
+        : `
+          <p class="text-sm text-slate-500">
+            No category data yet.
+          </p>
+        `;
+
+    $('chart').innerHTML = $('topCategories').innerHTML;
+
+    $('topCategory').textContent =
+      c[0]?.[0] || '—';
+
+    $('topCategoryAmount').textContent =
+      c[0]
+        ? money(c[0][1])
+        : 'No data yet';
+
+    const big =
+      expenses.reduce(
+        (a,b) =>
+          !a || Number(b.amount) > Number(a.amount)
+            ? b
+            : a,
+        null
+      );
+
+    $('largestExpense').textContent =
+      big ? money(big.amount) : '₦0';
+
+    $('largestExpenseName').textContent =
+      big?.name || 'No data yet';
+
+    $('transactionTotal').textContent =
+      expenses.length;
+  };
+
+  function updateAccountUI(){
+
+    if(user){
+
+      $('accountStatus').textContent =
+        user.email || 'Signed in';
+
+      $('accountHint').textContent =
+        'Cloud sync is on.';
+
+      $('accountButton').textContent =
+        'Sign out';
+
+    }else{
+
+      $('accountStatus').textContent =
+        'Not signed in';
+
+      $('accountHint').textContent =
+        accessMessage ||
+        'Sign in to sync across devices.';
+
+      $('accountButton').textContent =
+        'Sign in';
+    }
+  }
+
+  window.openAuth = function(){
+    $('authModal').classList.add('open');
+  };
+
+  function closeAuth(){
+    $('authModal').classList.remove('open');
+  }
+
+  function setAuthMode(mode){
+
+    authMode = mode;
+
+    const signup = mode === 'signup';
+
+    $('authTitle').textContent =
+      signup
+        ? 'Create your SpendWise account'
+        : 'Welcome to SpendWise';
+
+    $('authSubtitle').textContent =
+      signup
+        ? 'Create an account. Your account must be approved by an admin before cloud access.'
+        : 'Sign in to sync your expenses across devices.';
+
+    $('authSubmit').textContent =
+      signup
+        ? 'Create account'
+        : 'Sign in';
+
+    $('authToggle').textContent =
+      signup
+        ? 'I already have an account'
+        : 'Create an account instead';
+  }
+
+  async function getProfile(currentUser){
+
+    if(!supabaseClient || !currentUser){
+      return null;
+    }
+
+    const {data,error} =
+      await supabaseClient
+        .from('profiles')
+        .select('id,email,full_name,role,status')
+        .eq('id',currentUser.id)
+        .maybeSingle();
+
+    if(error){
+      console.error('PROFILE ERROR:',error);
+      return null;
+    }
+
+    return data;
+  }
+
+  async function handleSession(session){
+
+    const currentUser =
+      session?.user || null;
+
+    if(!currentUser){
+
+      user = null;
+      updateAccountUI();
+      return;
+    }
+
+    console.log('Checking SpendWise access...');
+    console.log('Logged in as:',currentUser.email);
+
+    const profile =
+      await getProfile(currentUser);
+
+    console.log('Your profile:',profile);
+
+    if(!profile){
+
+      accessMessage =
+        'Your account profile is not ready yet.';
+
+      toast(
+        'Your SpendWise profile is not ready yet.'
+      );
+
+      await supabaseClient.auth.signOut();
+
+      user = null;
+      updateAccountUI();
+      return;
+    }
+
+    if(
+      profile.role === 'admin' &&
+      profile.status === 'approved'
+    ){
+
+      user = currentUser;
+      accessMessage = '';
+
+      updateAccountUI();
+
+      console.log('Admin access granted.');
+
+      await cloudLoad();
+      return;
+    }
+
+    if(
+      profile.role === 'user' &&
+      profile.status === 'approved'
+    ){
+
+      user = currentUser;
+      accessMessage = '';
+
+      updateAccountUI();
+
+      console.log('Approved user access granted.');
+
+      await cloudLoad();
+      return;
+    }
+
+    if(profile.status === 'pending'){
+
+      accessMessage =
+        'Waiting for admin approval.';
+
+      toast(
+        'Your account is pending admin approval.'
+      );
+
+      await supabaseClient.auth.signOut();
+
+      user = null;
+      updateAccountUI();
+      return;
+    }
+
+    if(profile.status === 'rejected'){
+
+      accessMessage =
+        'Your application was rejected.';
+
+      toast(
+        'Your SpendWise application was rejected.'
+      );
+
+      await supabaseClient.auth.signOut();
+
+      user = null;
+      updateAccountUI();
+      return;
+    }
+
+    if(profile.status === 'suspended'){
+
+      accessMessage =
+        'Your account has been suspended.';
+
+      toast(
+        'Your SpendWise account has been suspended.'
+      );
+
+      await supabaseClient.auth.signOut();
+
+      user = null;
+      updateAccountUI();
+      return;
+    }
+
+    accessMessage =
+      'Your account cannot access SpendWise yet.';
+
+    toast(
+      'Your account cannot access SpendWise yet.'
+    );
+
+    await supabaseClient.auth.signOut();
+
+    user = null;
+    updateAccountUI();
+  }
+
+  async function initCloud(){
+
+    if(!window.SPENDWISE_CONFIG){
+
+      accessMessage =
+        'config.js was not loaded.';
+
+      updateAccountUI();
+
+      toast('SpendWise configuration is missing.');
+      return;
+    }
+
+    if(!CONFIG.url){
+
+      accessMessage =
+        'Supabase URL is missing.';
+
+      updateAccountUI();
+
+      toast('Supabase URL is missing.');
+      return;
+    }
+
+    if(!CONFIG.key){
+
+      accessMessage =
+        'Supabase key is missing.';
+
+      updateAccountUI();
+
+      toast('Supabase key is missing.');
+      return;
+    }
+
+    if(!window.supabase){
+
+      accessMessage =
+        'Supabase library did not load.';
+
+      updateAccountUI();
+
+      toast('Supabase library failed to load.');
+      return;
+    }
+
+    try{
+
+      supabaseClient =
+        window.supabase.createClient(
+          CONFIG.url,
+          CONFIG.key
+        );
+
+      const {
+        data,
+        error
+      } =
+        await supabaseClient.auth.getSession();
+
+      if(error){
+        console.error('SESSION ERROR:',error);
+      }
+
+      await handleSession(data?.session || null);
+
+      supabaseClient.auth.onAuthStateChange(
+        (_event,session) => {
+
+          setTimeout(
+            () => handleSession(session),
+            0
+          );
+        }
+      );
+
+    }catch(error){
+
+      console.error(
+        'Supabase initialization failed:',
+        error
+      );
+
+      accessMessage =
+        'Cloud connection failed.';
+
+      updateAccountUI();
+
+      toast(
+        'Cloud connection failed. Check the browser console.'
+      );
+    }
+  }
+
+  $('authForm').addEventListener(
+    'submit',
+    async e => {
+
+      e.preventDefault();
+
+      if(!supabaseClient){
+
+        toast(
+          'Supabase is not connected yet. Please refresh the page.'
+        );
+
+        return;
+      }
+
+      const email =
+        $('authEmail').value.trim();
+
+      const password =
+        $('authPassword').value;
+
+      if(authMode === 'signup'){
+
+        const {data,error} =
+          await supabaseClient.auth.signUp({
+            email,
+            password,
+            options:{
+              emailRedirectTo:
+                window.location.origin + '/'
+            }
+          });
+
+        if(error){
+
+          console.error(
+            'SIGNUP ERROR:',
+            error
+          );
+
+          toast(error.message);
+          return;
+        }
+
+        closeAuth();
+
+        if(!data?.session){
+
+          toast(
+            'Account created. Check your email, then wait for admin approval.'
+          );
+
+        }else{
+
+          toast(
+            'Account created. Waiting for admin approval.'
+          );
+        }
+
+        return;
+      }
+
+      const {error} =
+        await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if(error){
+
+        console.error(
+          'LOGIN ERROR:',
+          error
+        );
+
+        toast(error.message);
+        return;
+      }
+
+      closeAuth();
+    }
+  );
+
+  $('authToggle').addEventListener(
+    'click',
+    () =>
+      setAuthMode(
+        authMode === 'signin'
+          ? 'signup'
+          : 'signin'
+      )
+  );
+
+  $('authClose').addEventListener(
+    'click',
+    closeAuth
+  );
+
+  $('accountButton').addEventListener(
+    'click',
+    async () => {
+
+      if(user && supabaseClient){
+
+        await supabaseClient.auth.signOut();
+
+        user = null;
+        accessMessage = '';
+
+        updateAccountUI();
+
+        toast('Signed out.');
+
+      }else{
+
+        openAuth();
+      }
+    }
+  );
+
+  $('expenseModal').addEventListener(
+    'click',
+    e => {
+      if(e.target === $('expenseModal')){
+        closeExpense();
+      }
+    }
+  );
+
+  $('authModal').addEventListener(
+    'click',
+    e => {
+      if(e.target === $('authModal')){
+        closeAuth();
+      }
+    }
+  );
+
+  window.addEventListener(
+    'load',
+    async () => {
+
+      if(
+        localStorage.getItem('spendwise_theme') === 'dark'
+      ){
+        document.documentElement.classList.add('dark');
+      }
+
+      setAuthMode('signin');
+      showView('dashboard');
+      render();
+
+      await initCloud();
+    }
+  );
+
+})();
+</script>
+
+</body>
+</html>
