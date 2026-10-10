@@ -2,2277 +2,485 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-
-<title>SpendWise — Expense Tracker</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>SpendWise — Smart Expense Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-
 <script>
 tailwind.config = {
   darkMode: 'class',
-  theme: {
-    extend: {
-      fontFamily: {
-        display: ['Inter', 'ui-sans-serif', 'system-ui']
-      }
-    }
-  }
+  theme: { extend: {
+    fontFamily: { display: ['Inter','ui-sans-serif','system-ui'] },
+    boxShadow: { soft: '0 12px 35px rgba(15,23,42,.06)' }
+  }}
 };
 </script>
-
 <style>
-.view{display:none}
-.view.active{display:block}
-
-.modal{display:none}
-.modal.open{display:flex}
-
-.nav-active{
-  background:rgba(139,92,246,.2)!important;
-  color:#fff!important
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}
+button{touch-action:manipulation}
+.view{display:none}.view.active{display:block}
+.modal{display:none}.modal.open{display:flex}
+.nav-active{background:rgba(139,92,246,.17)!important;color:#fff!important}
+.toast{opacity:0;transform:translate(-50%,18px);pointer-events:none;transition:all .22s ease}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.field{width:100%;min-width:0;border:1px solid #e2e8f0;background:#f8fafc;border-radius:14px;padding:12px 14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.field:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.13)}
+.dark .field{background:#020617;border-color:#334155;color:#f8fafc}
+.card{background:white;border:1px solid #edf0f5;border-radius:22px;box-shadow:0 10px 28px rgba(15,23,42,.035)}
+.dark .card{background:#0f172a;border-color:#1e293b}
+.mobile-bottom{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+@media(max-width:639px){
+  .desktop-add{display:none}
+  .page-wrap{padding:16px 14px 100px}
+  .mobile-bottom{display:grid}
+  .card{border-radius:19px}
 }
-
-.toast{
-  opacity:0;
-  transform:translate(-50%,20px);
-  pointer-events:none;
-  transition:all .25s ease;
-}
-
-.toast.show{
-  opacity:1;
-  transform:translate(-50%,0);
-}
+@media(min-width:640px){.mobile-bottom{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
+<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+<div class="min-h-screen">
+  <!-- Mobile drawer overlay -->
+  <div id="overlay" onclick="closeMenu()" class="fixed inset-0 z-40 hidden bg-slate-950/60 backdrop-blur-sm lg:hidden"></div>
 
-<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-white">
-
-<div class="flex min-h-screen">
-
-<!-- SIDEBAR -->
-<aside
-  id="sidebar"
-  class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full bg-slate-950 p-5 text-white transition-transform lg:static lg:translate-x-0"
->
-  <div class="flex h-full flex-col">
-
-    <button
-      type="button"
-      onclick="showView('dashboard')"
-      class="mb-8 flex items-center gap-3 text-left"
-    >
-      <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 text-xl font-black">
-        S
-      </span>
-
-      <span>
-        <b class="block text-xl">SpendWise</b>
-        <small class="text-slate-400">Expense tracker</small>
-      </span>
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 flex w-[275px] -translate-x-full flex-col bg-slate-950 px-5 py-6 text-white transition-transform duration-300 lg:translate-x-0">
+    <button type="button" onclick="showView('dashboard')" class="mb-10 flex items-center gap-3 text-left">
+      <span class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 text-2xl font-black shadow-lg shadow-emerald-900/30">S</span>
+      <span><b class="block text-xl tracking-tight">SpendWise</b><small class="text-slate-400">Your money, in focus.</small></span>
     </button>
-
+    <p class="mb-3 px-3 text-[10px] font-extrabold uppercase tracking-[.22em] text-slate-500">Workspace</p>
     <nav class="space-y-2">
-
-      <button
-        type="button"
-        onclick="showView('dashboard')"
-        data-nav="dashboard"
-        class="nav-btn nav-active w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
-      >
-        ⌂ &nbsp; Overview
-      </button>
-
-      <button
-        type="button"
-        onclick="showView('expenses')"
-        data-nav="expenses"
-        class="nav-btn w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
-      >
-        ↗ &nbsp; Transactions
-      </button>
-
-      <button
-        type="button"
-        onclick="showView('analytics')"
-        data-nav="analytics"
-        class="nav-btn w-full rounded-xl px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
-      >
-        ◒ &nbsp; Analytics
-      </button>
-
+      <button type="button" onclick="showView('dashboard')" data-nav="dashboard" class="nav-btn nav-active flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">⌂</span> Overview</button>
+      <button type="button" onclick="showView('expenses')" data-nav="expenses" class="nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">↗</span> Transactions</button>
+      <button type="button" onclick="showView('analytics')" data-nav="analytics" class="nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">◒</span> Analytics</button>
     </nav>
-
-    <div class="mt-auto space-y-2">
-
-      <button
-        type="button"
-        onclick="toggleTheme()"
-        class="w-full rounded-xl border border-white/10 px-4 py-3 text-left font-semibold text-slate-300 hover:bg-white/10"
-      >
-        ◐ &nbsp; Appearance
-      </button>
-
-      <div class="rounded-2xl bg-white/5 p-3">
-
-        <div id="accountStatus" class="text-sm font-bold">
-          Local mode
-        </div>
-
-        <div id="accountHint" class="text-xs text-slate-400">
-          Saved in this browser.
-        </div>
-
-        <button
-          id="accountButton"
-          type="button"
-          class="mt-2 text-xs font-bold text-violet-300"
-        >
-          Sign in
-        </button>
-
+    <div class="mt-auto space-y-3">
+      <button type="button" onclick="toggleTheme()" class="flex w-full items-center gap-3 rounded-2xl border border-white/10 px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span>◐</span> Appearance <span id="themeLabel" class="ml-auto text-xs text-slate-500">Light</span></button>
+      <div class="rounded-2xl border border-white/10 bg-white/[.04] p-4">
+        <div class="flex items-center gap-2"><span id="statusDot" class="h-2.5 w-2.5 rounded-full bg-amber-400"></span><div id="accountStatus" class="min-w-0 truncate text-sm font-bold">Local mode</div></div>
+        <p id="accountHint" class="mt-1 text-xs leading-5 text-slate-400">Saved in this browser.</p>
+        <button id="accountButton" type="button" class="mt-3 text-sm font-bold text-emerald-300 hover:text-emerald-200">Sign in</button>
       </div>
-
+      <p class="px-2 text-[11px] text-slate-600">Spend smarter. Live better.</p>
     </div>
-  </div>
-</aside>
+  </aside>
 
-<!-- MOBILE OVERLAY -->
-<div
-  id="overlay"
-  onclick="closeMenu()"
-  class="fixed inset-0 z-30 hidden bg-black/50 lg:hidden"
-></div>
+  <!-- Main -->
+  <main class="min-w-0 lg:pl-[275px]">
+    <header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 px-4 py-3.5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 sm:px-8 sm:py-5">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-3">
+          <button type="button" onclick="openMenu()" aria-label="Open navigation" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-lg lg:hidden dark:border-slate-800 dark:bg-slate-900">☰</button>
+          <div class="min-w-0">
+            <p id="pageEyebrow" class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">YOUR OVERVIEW</p>
+            <h1 id="pageTitle" class="truncate text-lg font-black tracking-tight sm:text-2xl">Good day 👋</h1>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <button type="button" onclick="openAuth()" class="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold transition hover:bg-slate-50 sm:inline-flex dark:border-slate-800 dark:hover:bg-slate-900">Account</button>
+          <button type="button" onclick="openExpense()" class="desktop-add rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">＋ Add expense</button>
+        </div>
+      </div>
+    </header>
 
-<!-- MAIN -->
-<main class="min-w-0 flex-1">
-
-<header
-  class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90 sm:px-8"
->
-
-  <div class="flex items-center gap-3">
-
-    <button
-      type="button"
-      onclick="openMenu()"
-      class="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 lg:hidden dark:border-slate-800"
-    >
-      ☰
-    </button>
-
-    <div>
-      <p
-        id="pageEyebrow"
-        class="text-xs font-bold uppercase tracking-widest text-violet-600"
-      >
-        OVERVIEW
-      </p>
-
-      <h1
-        id="pageTitle"
-        class="text-xl font-black"
-      >
-        Good day 👋
-      </h1>
-    </div>
-
-  </div>
-
-  <div class="flex items-center gap-2">
-
-    <button
-      type="button"
-      onclick="openAuth()"
-      class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-    >
-      Account
-    </button>
-
-    <button
-      type="button"
-      onclick="openExpense()"
-      class="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg"
-    >
-      ＋ Add expense
-    </button>
-
-  </div>
-
-</header>
-
-<div class="mx-auto max-w-7xl p-4 sm:p-8">
-
-<!-- DASHBOARD -->
-<section id="dashboardView" class="view active">
-
-  <div class="rounded-3xl bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600 p-6 text-white shadow-xl sm:p-8">
-
-    <p class="text-sm font-semibold text-violet-100">
-      TOTAL SPENDING
-    </p>
-
-    <div id="totalSpent" class="mt-2 text-4xl font-black sm:text-5xl">
-      ₦0
-    </div>
-
-    <p class="mt-2 text-sm text-violet-100">
-      All recorded expenses
-    </p>
-
-    <button
-      type="button"
-      onclick="openExpense()"
-      class="mt-6 rounded-xl bg-white px-5 py-3 font-bold text-violet-700"
-    >
-      ＋ Record expense
-    </button>
-
-  </div>
-
-  <div class="mt-5 grid gap-4 sm:grid-cols-3">
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-      <span class="text-sm text-slate-500">Today</span>
-      <b id="todaySpent" class="mt-2 block text-2xl">₦0</b>
-    </div>
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-      <span class="text-sm text-slate-500">This month</span>
-      <b id="monthSpent" class="mt-2 block text-2xl">₦0</b>
-    </div>
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-      <span class="text-sm text-slate-500">Average</span>
-      <b id="averageSpent" class="mt-2 block text-2xl">₦0</b>
-    </div>
-
-  </div>
-
-  <div class="mt-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-
-    <section class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-      <div class="mb-4 flex items-center justify-between">
-
-        <div>
-          <h2 class="text-lg font-black">
-            Recent transactions
-          </h2>
-
-          <p class="text-sm text-slate-500">
-            Your latest spending.
-          </p>
+    <div class="page-wrap mx-auto max-w-7xl p-4 sm:p-8">
+      <!-- Dashboard -->
+      <section id="dashboardView" class="view active">
+        <div class="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 p-6 text-white shadow-xl shadow-emerald-900/15 sm:rounded-[30px] sm:p-9">
+          <div class="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full border-[35px] border-white/10"></div>
+          <div class="pointer-events-none absolute -bottom-24 right-24 h-52 w-52 rounded-full bg-emerald-400/20 blur-2xl"></div>
+          <div class="relative">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-emerald-100"><span class="grid h-7 w-7 place-items-center rounded-lg bg-white/15">₦</span>Total spending</div>
+            <div id="totalSpent" class="mt-4 break-words text-4xl font-black tracking-tight sm:text-5xl">₦0</div>
+            <p class="mt-2 text-sm text-emerald-100">All recorded expenses</p>
+            <button type="button" onclick="openExpense()" class="mt-6 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-emerald-700 shadow-lg transition hover:-translate-y-0.5">＋ Record an expense</button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onclick="showView('expenses')"
-          class="font-bold text-violet-600"
-        >
-          View all →
-        </button>
+        <div class="mt-4 grid grid-cols-2 gap-3 sm:mt-5 sm:grid-cols-3 sm:gap-4">
+          <div class="card p-4 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Spent today</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">☀</span></div><b id="todaySpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Today</p></div>
+          <div class="card p-4 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">This month</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">▦</span></div><b id="monthSpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Current month</p></div>
+          <div class="card col-span-2 p-4 sm:col-span-1 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Average expense</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">↗</span></div><b id="averageSpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Per transaction</p></div>
+        </div>
 
-      </div>
+        <div class="mt-5 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+          <section class="card min-w-0 p-4 sm:p-6">
+            <div class="mb-5 flex items-center justify-between gap-3"><div><h2 class="text-base font-black sm:text-lg">Recent transactions</h2><p class="mt-1 text-xs text-slate-500 sm:text-sm">Your latest money moves.</p></div><button type="button" onclick="showView('expenses')" class="shrink-0 text-sm font-extrabold text-emerald-600">View all →</button></div>
+            <div id="recentList" class="space-y-2"></div>
+          </section>
+          <section class="card min-w-0 p-4 sm:p-6">
+            <div class="mb-5"><h2 class="text-base font-black sm:text-lg">Top categories</h2><p class="mt-1 text-xs text-slate-500 sm:text-sm">Where your money goes.</p></div>
+            <div id="topCategories" class="space-y-5"></div>
+          </section>
+        </div>
+      </section>
 
-      <div id="recentList" class="space-y-2"></div>
+      <!-- Transactions -->
+      <section id="expensesView" class="view">
+        <div class="mb-5 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+          <div><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">YOUR ACTIVITY</p><h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Transactions</h2><p class="mt-1 text-sm text-slate-500">Search, filter, edit and manage spending.</p></div>
+          <button type="button" onclick="openExpense()" class="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 sm:w-auto">＋ Add expense</button>
+        </div>
+        <div class="card p-4 sm:p-6">
+          <div class="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
+            <label class="relative block"><span class="sr-only">Search expenses</span><span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><input id="searchInput" oninput="render()" class="field pl-10" placeholder="Search item, note or date…"></label>
+            <select id="categoryFilter" onchange="render()" class="field"><option value="">All categories</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select>
+            <select id="sortFilter" onchange="render()" class="field"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest amount</option><option value="lowest">Lowest amount</option></select>
+          </div>
+          <div class="my-4 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800"><p id="resultCount" class="text-xs font-bold text-slate-500">0 transactions</p><button type="button" onclick="clearFilters()" class="text-xs font-bold text-emerald-600">Clear filters</button></div>
+          <div id="allList" class="space-y-2"></div>
+        </div>
+      </section>
 
-    </section>
-
-    <section class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-      <h2 class="text-lg font-black">
-        Top categories
-      </h2>
-
-      <p class="mb-5 text-sm text-slate-500">
-        Where your money goes.
-      </p>
-
-      <div id="topCategories" class="space-y-4"></div>
-
-    </section>
-
-  </div>
-
-</section>
-
-<!-- EXPENSES -->
-<section id="expensesView" class="view">
-
-  <div class="mb-6 flex items-end justify-between gap-4">
-
-    <div>
-
-      <p class="text-xs font-bold tracking-widest text-violet-600">
-        TRANSACTIONS
-      </p>
-
-      <h2 class="text-3xl font-black">
-        Every expense, organized.
-      </h2>
-
-      <p class="text-sm text-slate-500">
-        Search, filter, edit and manage your spending.
-      </p>
-
+      <!-- Analytics -->
+      <section id="analyticsView" class="view">
+        <div class="mb-5 sm:mb-7"><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">SPENDING INSIGHTS</p><h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Analytics</h2><p class="mt-1 text-sm text-slate-500">Understand your habits and spending patterns.</p></div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <div class="card p-4 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Top category</span><b id="topCategory" class="mt-3 block break-words text-lg font-black">—</b><small id="topCategoryAmount" class="mt-1 block text-xs text-slate-400">No data yet</small></div>
+          <div class="card p-4 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Largest expense</span><b id="largestExpense" class="mt-3 block break-words text-lg font-black">₦0</b><small id="largestExpenseName" class="mt-1 block break-words text-xs text-slate-400">No data yet</small></div>
+          <div class="card col-span-2 p-4 sm:col-span-1 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Transactions recorded</span><b id="transactionTotal" class="mt-3 block text-lg font-black">0</b><small class="mt-1 block text-xs text-slate-400">All-time count</small></div>
+        </div>
+        <div class="card mt-4 p-4 sm:mt-5 sm:p-6"><h3 class="mb-5 text-base font-black sm:text-lg">Spending by category</h3><div id="chart" class="space-y-5"></div></div>
+      </section>
     </div>
-
-    <button
-      type="button"
-      onclick="openExpense()"
-      class="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
-    >
-      ＋ Add expense
-    </button>
-
-  </div>
-
-  <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-    <div class="grid gap-3 md:grid-cols-3">
-
-      <input
-        id="searchInput"
-        oninput="render()"
-        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="Search expenses..."
-      >
-
-      <select
-        id="categoryFilter"
-        onchange="render()"
-        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-      >
-        <option value="">All categories</option>
-        <option>Food</option>
-        <option>Data</option>
-        <option>Clothes</option>
-        <option>Transport</option>
-        <option>Entertainment</option>
-        <option>Bills</option>
-        <option>Shopping</option>
-        <option>Other</option>
-      </select>
-
-      <select
-        id="sortFilter"
-        onchange="render()"
-        class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-      >
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-        <option value="highest">Highest amount</option>
-        <option value="lowest">Lowest amount</option>
-      </select>
-
-    </div>
-
-    <p
-      id="resultCount"
-      class="my-4 border-b border-slate-100 pb-3 text-xs font-semibold text-slate-500"
-    >
-      0 transactions
-    </p>
-
-    <div id="allList" class="space-y-2"></div>
-
-  </div>
-
-</section>
-
-<!-- ANALYTICS -->
-<section id="analyticsView" class="view">
-
-  <div class="mb-6">
-
-    <p class="text-xs font-bold tracking-widest text-violet-600">
-      ANALYTICS
-    </p>
-
-    <h2 class="text-3xl font-black">
-      Your money, visualized.
-    </h2>
-
-    <p class="text-sm text-slate-500">
-      Understand your spending habits.
-    </p>
-
-  </div>
-
-  <div class="grid gap-4 sm:grid-cols-3">
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-      <span class="text-sm text-slate-500">
-        Top category
-      </span>
-
-      <b id="topCategory" class="mt-2 block text-xl">
-        —
-      </b>
-
-      <small id="topCategoryAmount" class="text-slate-400">
-        No data yet
-      </small>
-
-    </div>
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-      <span class="text-sm text-slate-500">
-        Largest expense
-      </span>
-
-      <b id="largestExpense" class="mt-2 block text-xl">
-        ₦0
-      </b>
-
-      <small id="largestExpenseName" class="text-slate-400">
-        No data yet
-      </small>
-
-    </div>
-
-    <div class="rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-      <span class="text-sm text-slate-500">
-        Transactions
-      </span>
-
-      <b id="transactionTotal" class="mt-2 block text-xl">
-        0
-      </b>
-
-    </div>
-
-  </div>
-
-  <div class="mt-5 rounded-2xl bg-white p-5 shadow-sm dark:bg-slate-900">
-
-    <h2 class="mb-5 text-lg font-black">
-      Spending by category
-    </h2>
-
-    <div id="chart" class="space-y-4"></div>
-
-  </div>
-
-</section>
-
-</div>
-</main>
+  </main>
 </div>
 
-<!-- EXPENSE MODAL -->
-<div
-  id="expenseModal"
-  class="modal fixed inset-0 z-50 items-center justify-center bg-black/60 p-4"
->
+<!-- Mobile quick navigation -->
+<nav class="mobile-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pt-2 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
+  <button type="button" onclick="showView('dashboard')" data-mobile-nav="dashboard" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-emerald-600"><span class="text-xl leading-5">⌂</span><span class="text-[10px] font-bold">Home</span></button>
+  <button type="button" onclick="showView('expenses')" data-mobile-nav="expenses" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="text-xl leading-5">↗</span><span class="text-[10px] font-bold">Activity</span></button>
+  <button type="button" onclick="showView('analytics')" data-mobile-nav="analytics" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="text-xl leading-5">◒</span><span class="text-[10px] font-bold">Insights</span></button>
+  <button type="button" onclick="openExpense()" class="flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="grid h-6 w-6 place-items-center rounded-lg bg-emerald-600 text-lg leading-none text-white">＋</span><span class="text-[10px] font-bold">Add</span></button>
+</nav>
 
-  <div class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
-
-    <div class="mb-5 flex items-center justify-between">
-
-      <h2 id="modalTitle" class="text-2xl font-black">
-        Add expense
-      </h2>
-
-      <button
-        type="button"
-        onclick="closeExpense()"
-        class="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl dark:bg-slate-800"
-      >
-        ×
-      </button>
-
-    </div>
-
+<!-- Expense modal -->
+<div id="expenseModal" class="modal fixed inset-0 z-[70] items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+  <div class="max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-7 dark:bg-slate-900">
+    <div class="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden"></div>
+    <div class="mb-5 flex items-center justify-between"><div><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">SPENDWISE</p><h2 id="modalTitle" class="mt-1 text-xl font-black sm:text-2xl">Add expense</h2></div><button type="button" onclick="closeExpense()" aria-label="Close" class="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl dark:bg-slate-800">×</button></div>
     <form id="expenseForm" onsubmit="saveExpense(event)" class="space-y-4">
-
-      <input
-        id="expenseName"
-        required
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="What did you buy? e.g. T-shirt"
-      >
-
-      <input
-        id="expenseAmount"
-        required
-        type="number"
-        min="1"
-        step="1"
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="Amount e.g. 5000"
-      >
-
-      <input
-        id="expenseDate"
-        required
-        type="date"
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-      >
-
-      <select
-        id="expenseCategory"
-        required
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-      >
-        <option value="">Choose category</option>
-        <option>Food</option>
-        <option>Data</option>
-        <option>Clothes</option>
-        <option>Transport</option>
-        <option>Entertainment</option>
-        <option>Bills</option>
-        <option>Shopping</option>
-        <option>Other</option>
-      </select>
-
-      <textarea
-        id="expenseNote"
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="Note (optional)"
-      ></textarea>
-
-      <button
-        type="submit"
-        class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
-      >
-        Save expense
-      </button>
-
-    </form>
-
-  </div>
-
-</div>
-
-<!-- AUTH MODAL -->
-<div
-  id="authModal"
-  class="modal fixed inset-0 z-[80] items-center justify-center bg-black/70 p-4"
->
-
-  <div class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900">
-
-    <div class="mb-6 text-center">
-
-      <div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 text-2xl font-black text-white">
-        S
+      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">What did you buy?</span><input id="expenseName" required maxlength="120" class="field" placeholder="e.g. Lunch, mobile data, T-shirt"></label>
+      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Amount (₦)</span><input id="expenseAmount" required type="number" min="1" step="1" inputmode="numeric" class="field" placeholder="e.g. 5000"></label>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Date purchased</span><input id="expenseDate" required type="date" class="field"></label>
+        <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Category</span><select id="expenseCategory" required class="field"><option value="">Choose category</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select></label>
       </div>
-
-      <h2 id="authTitle" class="text-2xl font-black">
-        Welcome to SpendWise
-      </h2>
-
-      <p id="authSubtitle" class="mt-1 text-sm text-slate-500">
-        Sign in to sync your expenses across devices.
-      </p>
-
-    </div>
-
-    <form id="authForm" class="space-y-4">
-
-      <input
-        id="authEmail"
-        required
-        type="email"
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="Email address"
-      >
-
-      <input
-        id="authPassword"
-        required
-        type="password"
-        minlength="6"
-        class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        placeholder="Password (6+ characters)"
-      >
-
-      <button
-        id="authSubmit"
-        type="submit"
-        class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 font-bold text-white"
-      >
-        Sign in
-      </button>
-
+      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Note <span class="font-normal text-slate-400">(optional)</span></span><textarea id="expenseNote" maxlength="500" rows="3" class="field resize-y" placeholder="Add any helpful details…"></textarea></label>
+      <button id="saveExpenseButton" type="submit" class="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3.5 font-extrabold text-white shadow-lg shadow-emerald-600/20 transition hover:brightness-110">Save expense</button>
     </form>
-
-    <button
-      id="authToggle"
-      type="button"
-      class="mt-4 w-full text-sm font-bold text-violet-600"
-    >
-      Create an account instead
-    </button>
-
-    <button
-      id="authClose"
-      type="button"
-      class="mt-2 w-full text-sm text-slate-500"
-    >
-      Continue in local mode
-    </button>
-
   </div>
-
 </div>
 
-<!-- TOAST -->
-<div
-  id="toast"
-  class="toast fixed bottom-5 left-1/2 z-[100] rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white shadow-2xl"
-></div>
+<!-- Authentication modal -->
+<div id="authModal" class="modal fixed inset-0 z-[80] items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+  <div class="w-full rounded-t-[28px] bg-white p-6 shadow-2xl sm:max-w-md sm:rounded-3xl sm:p-7 dark:bg-slate-900">
+    <div class="mx-auto mb-5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden"></div>
+    <div class="mb-6 text-center"><div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 text-2xl font-black text-white shadow-lg shadow-emerald-600/20">S</div><h2 id="authTitle" class="text-2xl font-black">Welcome to SpendWise</h2><p id="authSubtitle" class="mt-2 text-sm leading-6 text-slate-500">Sign in to sync your expenses across devices.</p></div>
+    <form id="authForm" class="space-y-4">
+      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Email address</span><input id="authEmail" required type="email" autocomplete="email" class="field" placeholder="you@example.com"></label>
+      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Password</span><input id="authPassword" required type="password" minlength="6" autocomplete="current-password" class="field" placeholder="At least 6 characters"></label>
+      <button id="authSubmit" type="submit" class="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3.5 font-extrabold text-white">Sign in</button>
+    </form>
+    <button id="authToggle" type="button" class="mt-4 w-full text-sm font-extrabold text-emerald-600">Create an account instead</button>
+    <button id="authClose" type="button" class="mt-3 w-full py-2 text-sm font-semibold text-slate-500">Close</button>
+  </div>
+</div>
 
+<div id="toast" role="status" aria-live="polite" class="toast fixed bottom-24 left-1/2 z-[100] max-w-[calc(100vw-28px)] rounded-xl bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-2xl sm:bottom-5"></div>
 
 <script>
 (() => {
-
-  /* =========================================================
-     SPENDWISE CORE
-  ========================================================= */
-
+  'use strict';
   const KEY = 'spendwise_expenses_v5';
-
   const CONFIG = {
     url: window.SPENDWISE_CONFIG?.SUPABASE_URL || '',
     key: window.SPENDWISE_CONFIG?.SUPABASE_ANON_KEY || ''
   };
-
   let expenses = [];
   let editingId = null;
   let authMode = 'signin';
-
   let supabase = null;
   let user = null;
-
   let accessMessage = '';
-
+  let sessionCheck = 0;
   const $ = id => document.getElementById(id);
-
-  const icons = {
-    Food: '🍔',
-    Data: '📶',
-    Clothes: '👕',
-    Transport: '🚗',
-    Entertainment: '🎮',
-    Bills: '💡',
-    Shopping: '🛍️',
-    Other: '📦'
-  };
-
-
-  /* =========================================================
-     LOCAL DATA
-  ========================================================= */
+  const icons = {Food:'🍔',Data:'📶',Clothes:'👕',Transport:'🚗',Entertainment:'🎮',Bills:'💡',Shopping:'🛍️',Other:'📦'};
 
   try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || '[]');
+    expenses = Array.isArray(saved) ? saved : [];
+  } catch { expenses = []; }
 
-    expenses = JSON.parse(
-      localStorage.getItem(KEY) || '[]'
-    );
-
-    if (!Array.isArray(expenses)) {
-      expenses = [];
-    }
-
-  } catch {
-
-    expenses = [];
-
-  }
-
-
-  /* =========================================================
-     MONEY
-  ========================================================= */
-
-  const money = n =>
-    new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      maximumFractionDigits: 0
-    }).format(Number(n) || 0);
-
-
-  /* =========================================================
-     TODAY
-  ========================================================= */
-
+  const money = n => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(n)||0);
   const today = () => {
-
     const d = new Date();
-
-    return new Date(
-      d - d.getTimezoneOffset() * 60000
-    )
-      .toISOString()
-      .slice(0, 10);
-
+    return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
   };
-
-
-  /* =========================================================
-     HTML SAFETY
-  ========================================================= */
-
-  const safe = s =>
-    String(s ?? '').replace(
-      /[&<>'"]/g,
-      c => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;'
-      }[c])
-    );
-
-
-  /* =========================================================
-     TOAST
-  ========================================================= */
-
+  const safe = s => String(s ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   function toast(message) {
-
     $('toast').textContent = message;
-
     $('toast').classList.add('show');
-
     clearTimeout(window._spendwiseToast);
-
-    window._spendwiseToast =
-      setTimeout(() => {
-        $('toast').classList.remove('show');
-      }, 3500);
-
+    window._spendwiseToast = setTimeout(()=>$('toast').classList.remove('show'),3200);
   }
-
-
-  /* =========================================================
-     LOCAL SAVE
-  ========================================================= */
-
   function persist() {
-
-    localStorage.setItem(
-      KEY,
-      JSON.stringify(expenses)
-    );
-
+    try { localStorage.setItem(KEY,JSON.stringify(expenses)); }
+    catch { toast('Browser storage is full. Export or remove some expenses.'); }
   }
-
-
-  /* =========================================================
-     CLOUD LOAD
-  ========================================================= */
-
-  async function cloudLoad() {
-
-    if (!supabase || !user) {
-      return;
-    }
-
-    const {
-      data,
-      error
-    } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('expense_date', {
-        ascending: false
-      });
-
-    if (error) {
-
-      console.error(
-        'CLOUD LOAD ERROR:',
-        error
-      );
-
-      toast(
-        'Could not load cloud expenses.'
-      );
-
-      return;
-
-    }
-
-    expenses = (data || []).map(e => ({
-
-      id: e.id,
-
-      name: e.name,
-
-      amount: Number(e.amount),
-
-      date: e.expense_date,
-
-      category: e.category,
-
-      note: e.note || ''
-
-    }));
-
-    persist();
-
-    render();
-
+  function closeDrawerIfMobile() {
+    if (window.matchMedia('(max-width: 1023px)').matches) closeMenu();
   }
-
-
-  /* =========================================================
-     CLOUD SAVE
-  ========================================================= */
-
-  async function cloudUpsert(item) {
-
-    if (!supabase || !user) {
-      return;
-    }
-
-    const payload = {
-
-      id: item.id,
-
-      user_id: user.id,
-
-      name: item.name,
-
-      amount: item.amount,
-
-      expense_date: item.date,
-
-      category: item.category,
-
-      note: item.note || ''
-
-    };
-
-    const {
-      error
-    } = await supabase
-      .from('expenses')
-      .upsert(payload);
-
-    if (error) {
-
-      console.error(
-        'CLOUD SAVE ERROR:',
-        error
-      );
-
-      toast(
-        'Saved locally, but cloud sync failed.'
-      );
-
-    }
-
-  }
-
-
-  /* =========================================================
-     CLOUD DELETE
-  ========================================================= */
-
-  async function cloudDelete(id) {
-
-    if (!supabase || !user) {
-      return;
-    }
-
-    const {
-      error
-    } = await supabase
-      .from('expenses')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-
-      console.error(
-        'CLOUD DELETE ERROR:',
-        error
-      );
-
-      toast(
-        'Deleted locally, but cloud delete failed.'
-      );
-
-    }
-
-  }
-
-
-  /* =========================================================
-     NAVIGATION
-  ========================================================= */
 
   window.showView = function(view) {
-
-    [
-      'dashboard',
-      'expenses',
-      'analytics'
-    ].forEach(v => {
-
-      $(`${v}View`)
-        .classList
-        .toggle(
-          'active',
-          v === view
-        );
-
+    ['dashboard','expenses','analytics'].forEach(v=>$(`${v}View`).classList.toggle('active',v===view));
+    document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('nav-active',b.dataset.nav===view));
+    document.querySelectorAll('[data-mobile-nav]').forEach(b=>{
+      const active=b.dataset.mobileNav===view;
+      b.classList.toggle('text-emerald-600',active);
+      b.classList.toggle('text-slate-400',!active);
     });
-
-    document
-      .querySelectorAll('[data-nav]')
-      .forEach(button => {
-
-        button.classList.toggle(
-          'nav-active',
-          button.dataset.nav === view
-        );
-
-      });
-
-    $('pageEyebrow').textContent =
-      view === 'dashboard'
-        ? 'OVERVIEW'
-        : view.toUpperCase();
-
-    $('pageTitle').textContent =
-      view === 'dashboard'
-        ? 'Good day 👋'
-        : view === 'expenses'
-          ? 'Transactions'
-          : 'Analytics';
-
-    closeMenu();
-
+    $('pageEyebrow').textContent = view==='dashboard'?'YOUR OVERVIEW':view==='expenses'?'YOUR ACTIVITY':'SPENDING INSIGHTS';
+    $('pageTitle').textContent = view==='dashboard'?'Good day 👋':view==='expenses'?'Transactions':'Analytics';
+    closeDrawerIfMobile();
+    window.scrollTo({top:0,behavior:'smooth'});
   };
-
-
-  /* =========================================================
-     MOBILE MENU
-  ========================================================= */
-
-  window.openMenu = function() {
-
-    $('sidebar')
-      .classList
-      .remove('-translate-x-full');
-
-    $('overlay')
-      .classList
-      .remove('hidden');
-
-  };
-
-
-  window.closeMenu = function() {
-
-    $('sidebar')
-      .classList
-      .add('-translate-x-full');
-
-    $('overlay')
-      .classList
-      .add('hidden');
-
-  };
-
-
-  /* =========================================================
-     DARK MODE
-  ========================================================= */
-
+  window.openMenu = function() {$('sidebar').classList.remove('-translate-x-full');$('overlay').classList.remove('hidden');};
+  window.closeMenu = function() {$('sidebar').classList.add('-translate-x-full');$('overlay').classList.add('hidden');};
   window.toggleTheme = function() {
-
-    document.documentElement
-      .classList
-      .toggle('dark');
-
-    localStorage.setItem(
-      'spendwise_theme',
-      document.documentElement.classList.contains('dark')
-        ? 'dark'
-        : 'light'
-    );
-
+    const dark=document.documentElement.classList.toggle('dark');
+    localStorage.setItem('spendwise_theme',dark?'dark':'light');
+    $('themeLabel').textContent=dark?'Dark':'Light';
+    document.querySelector('meta[name="theme-color"]').content=dark?'#020617':'#0f172a';
   };
-
-
-  /* =========================================================
-     EXPENSE MODAL
-  ========================================================= */
+  window.clearFilters = function() {
+    $('searchInput').value='';$('categoryFilter').value='';$('sortFilter').value='newest';render();
+  };
 
   window.openExpense = function(edit) {
-
-    /*
-      SECURITY:
-      Only approved/signed-in cloud users can create expenses.
-      Local mode can still be used without an account.
-    */
-
     if (supabase && !user) {
-
-      toast(
-        'Please sign in with an approved SpendWise account first.'
-      );
-
-      openAuth();
-
-      return;
-
+      toast(accessMessage || 'Please sign in with an approved account first.');
+      openAuth();return;
     }
-
-    editingId = edit?.id || null;
-
+    editingId=edit?.id || null;
     $('expenseForm').reset();
-
-    $('expenseDate').value =
-      edit?.date || today();
-
-    if (edit) {
-
-      $('modalTitle').textContent =
-        'Edit expense';
-
-      $('expenseName').value =
-        edit.name;
-
-      $('expenseAmount').value =
-        edit.amount;
-
-      $('expenseCategory').value =
-        edit.category;
-
-      $('expenseNote').value =
-        edit.note || '';
-
-    } else {
-
-      $('modalTitle').textContent =
-        'Add expense';
-
+    $('expenseDate').value=edit?.date || today();
+    $('modalTitle').textContent=edit?'Edit expense':'Add expense';
+    $('saveExpenseButton').textContent=edit?'Update expense':'Save expense';
+    if(edit) {
+      $('expenseName').value=edit.name || '';
+      $('expenseAmount').value=edit.amount;
+      $('expenseCategory').value=edit.category || '';
+      $('expenseNote').value=edit.note || '';
     }
-
-    $('expenseModal')
-      .classList
-      .add('open');
-
-    setTimeout(
-      () => $('expenseName').focus(),
-      50
-    );
-
+    $('expenseModal').classList.add('open');
+    document.body.style.overflow='hidden';
+    setTimeout(()=>$('expenseName').focus({preventScroll:true}),80);
   };
-
-
   window.closeExpense = function() {
-
-    $('expenseModal')
-      .classList
-      .remove('open');
-
-    editingId = null;
-
+    $('expenseModal').classList.remove('open');editingId=null;document.body.style.overflow='';
   };
-
-
-  /* =========================================================
-     SAVE EXPENSE
-  ========================================================= */
-
   window.saveExpense = async function(e) {
-
     e.preventDefault();
-
-    const name =
-      $('expenseName')
-        .value
-        .trim();
-
-    const amount =
-      Number(
-        $('expenseAmount').value
-      );
-
-    const date =
-      $('expenseDate').value;
-
-    const category =
-      $('expenseCategory').value;
-
-    const note =
-      $('expenseNote')
-        .value
-        .trim();
-
-    if (
-      !name ||
-      !amount ||
-      amount <= 0 ||
-      !date ||
-      !category
-    ) {
-
-      toast(
-        'Please complete all required fields.'
-      );
-
-      return;
-
-    }
-
-    const wasEditing = !!editingId;
-
-    const id =
-      editingId || crypto.randomUUID();
-
-    const item = {
-
-      id,
-
-      name,
-
-      amount,
-
-      date,
-
-      category,
-
-      note
-
-    };
-
-    if (editingId) {
-
-      expenses = expenses.map(x =>
-        String(x.id) === String(editingId)
-          ? item
-          : x
-      );
-
-    } else {
-
-      expenses.unshift(item);
-
-    }
-
-    persist();
-
-    render();
-
-    closeExpense();
-
-    toast(
-      wasEditing
-        ? 'Expense updated ✓'
-        : 'Expense recorded ✓'
-    );
-
+    const name=$('expenseName').value.trim();
+    const amount=Number($('expenseAmount').value);
+    const date=$('expenseDate').value;
+    const category=$('expenseCategory').value;
+    const note=$('expenseNote').value.trim();
+    if(!name||!Number.isFinite(amount)||amount<=0||!date||!category){toast('Please check all required fields.');return;}
+    if(supabase&&!user){toast('Please sign in with an approved account first.');openAuth();return;}
+    const wasEditing=!!editingId;
+    const id=editingId||crypto.randomUUID();
+    const item={id,name,amount,date,category,note};
+    if(editingId) expenses=expenses.map(x=>String(x.id)===String(editingId)?item:x);
+    else expenses.unshift(item);
+    persist();render();closeExpense();
+    toast(wasEditing?'Expense updated ✓':'Expense recorded ✓');
     await cloudUpsert(item);
-
   };
-
-
-  /* =========================================================
-     DELETE
-  ========================================================= */
-
   window.deleteExpense = async function(id) {
-
-    if (!confirm('Delete this expense?')) {
-      return;
-    }
-
-    expenses = expenses.filter(
-      x =>
-        String(x.id) !== String(id)
-    );
-
-    persist();
-
-    render();
-
-    toast(
-      'Expense deleted.'
-    );
-
+    if(!confirm('Delete this expense permanently?'))return;
+    const previous=expenses;
+    expenses=expenses.filter(x=>String(x.id)!==String(id));
+    persist();render();toast('Expense deleted.');
     await cloudDelete(id);
-
   };
-
-
-  /* =========================================================
-     EXPENSE ROW
-  ========================================================= */
 
   function row(e) {
-
-    const editArg =
-      JSON.stringify(e)
-        .replace(/</g, '\\u003c')
-        .replace(/>/g, '\\u003e')
-        .replace(/'/g, '\\u0027');
-
-    return `
-      <div class="flex flex-col gap-3 rounded-xl border border-slate-100 p-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-
-        <div class="flex items-center gap-3">
-
-          <span class="grid h-10 w-10 place-items-center rounded-xl bg-violet-100 dark:bg-violet-500/10">
-            ${icons[e.category] || '📦'}
-          </span>
-
-          <div>
-
-            <b>${safe(e.name)}</b>
-
-            <p class="text-xs text-slate-500">
-              ${safe(e.category)} · ${safe(e.date)}
-            </p>
-
-          </div>
-
-        </div>
-
-        <div class="flex items-center gap-3">
-
-          <b>${money(e.amount)}</b>
-
-          <button
-            type="button"
-            onclick='openExpense(${editArg})'
-            class="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold dark:bg-slate-800"
-          >
-            Edit
-          </button>
-
-          <button
-            type="button"
-            onclick="deleteExpense('${safe(e.id)}')"
-            class="rounded-lg bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600"
-          >
-            Delete
-          </button>
-
-        </div>
-
-      </div>
-    `;
-
+    const editArg=JSON.stringify(e).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/'/g,'\\u0027');
+    return `<article class="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-100 p-3.5 transition hover:border-emerald-100 hover:bg-emerald-50/30 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/40">
+      <div class="flex min-w-0 items-center gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-xl dark:bg-emerald-500/10">${icons[e.category]||'📦'}</span><div class="min-w-0"><b class="block break-words text-sm font-extrabold">${safe(e.name)}</b><p class="mt-1 break-words text-xs text-slate-500">${safe(e.category)} <span class="px-1 text-slate-300">•</span> ${safe(e.date)}${e.note?` <span class="px-1 text-slate-300">•</span> ${safe(e.note)}`:''}</p></div></div>
+      <div class="flex items-center justify-between gap-3 pl-1 sm:justify-end sm:pl-0"><b class="text-sm font-black">${money(e.amount)}</b><div class="flex gap-2"><button type="button" onclick='openExpense(${editArg})' class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-emerald-100 dark:bg-slate-800 dark:hover:bg-emerald-500/20">Edit</button><button type="button" onclick="deleteExpense('${safe(e.id)}')" class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10">Delete</button></div></div>
+    </article>`;
   }
-
-
-  /* =========================================================
-     CATEGORY TOTALS
-  ========================================================= */
-
   function cats() {
-
-    const m = {};
-
-    expenses.forEach(e => {
-
-      m[e.category] =
-        (m[e.category] || 0) +
-        Number(e.amount);
-
-    });
-
-    return Object.entries(m)
-      .sort(
-        (a, b) =>
-          b[1] - a[1]
-      );
-
+    const totals={};
+    expenses.forEach(e=>{totals[e.category]=(totals[e.category]||0)+Number(e.amount||0);});
+    return Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   }
-
-
-  /* =========================================================
-     RENDER
-  ========================================================= */
-
+  function categoryBars(categories) {
+    const max=categories[0]?.[1]||1;
+    return categories.length?categories.slice(0,8).map(([name,value])=>`<div><div class="mb-2 flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm font-bold">${icons[name]||'📦'} ${safe(name)}</span><b class="shrink-0 text-sm">${money(value)}</b></div><div class="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style="width:${Math.max(2,Math.min(100,value/max*100))}%"></div></div></div>`).join(''):'<div class="rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:bg-slate-800/50">No category data yet. Add your first expense to see insights.</div>';
+  }
   window.render = function() {
+    const total=expenses.reduce((s,e)=>s+Number(e.amount||0),0), t=today(), month=t.slice(0,7);
+    $('totalSpent').textContent=money(total);
+    $('todaySpent').textContent=money(expenses.filter(e=>e.date===t).reduce((s,e)=>s+Number(e.amount||0),0));
+    $('monthSpent').textContent=money(expenses.filter(e=>String(e.date||'').startsWith(month)).reduce((s,e)=>s+Number(e.amount||0),0));
+    $('averageSpent').textContent=money(expenses.length?total/expenses.length:0);
 
-    const total =
-      expenses.reduce(
-        (s, e) =>
-          s + Number(e.amount),
-        0
-      );
-
-    const t = today();
-
-    const month =
-      t.slice(0, 7);
-
-    $('totalSpent').textContent =
-      money(total);
-
-    $('todaySpent').textContent =
-      money(
-        expenses
-          .filter(
-            e => e.date === t
-          )
-          .reduce(
-            (s, e) =>
-              s + Number(e.amount),
-            0
-          )
-      );
-
-    $('monthSpent').textContent =
-      money(
-        expenses
-          .filter(
-            e =>
-              e.date?.startsWith(month)
-          )
-          .reduce(
-            (s, e) =>
-              s + Number(e.amount),
-            0
-          )
-      );
-
-    $('averageSpent').textContent =
-      money(
-        expenses.length
-          ? total / expenses.length
-          : 0
-      );
-
-
-    let list =
-      [...expenses];
-
-    const q =
-      ($('searchInput')?.value || '')
-        .toLowerCase();
-
-    const cat =
-      $('categoryFilter')?.value || '';
-
-    const sort =
-      $('sortFilter')?.value || 'newest';
-
-
-    list =
-      list.filter(e => {
-
-        const matchesSearch =
-          !q ||
-          [
-            e.name,
-            e.category,
-            e.note,
-            e.date
-          ].some(v =>
-            String(v || '')
-              .toLowerCase()
-              .includes(q)
-          );
-
-        const matchesCategory =
-          !cat ||
-          e.category === cat;
-
-        return (
-          matchesSearch &&
-          matchesCategory
-        );
-
-      });
-
-
-    list.sort((a, b) => {
-
-      if (sort === 'highest') {
-        return b.amount - a.amount;
-      }
-
-      if (sort === 'lowest') {
-        return a.amount - b.amount;
-      }
-
-      if (sort === 'oldest') {
-        return a.date.localeCompare(
-          b.date
-        );
-      }
-
-      return b.date.localeCompare(
-        a.date
-      );
-
+    const q=($('searchInput')?.value||'').trim().toLowerCase(), cat=$('categoryFilter')?.value||'', sort=$('sortFilter')?.value||'newest';
+    let list=expenses.filter(e=>{
+      const matches=!q||[e.name,e.category,e.note,e.date].some(v=>String(v||'').toLowerCase().includes(q));
+      return matches&&(!cat||e.category===cat);
     });
-
-
-    $('allList').innerHTML =
-      list.length
-        ? list.map(row).join('')
-        : `
-          <div class="p-8 text-center text-sm text-slate-500">
-            No expenses recorded yet.
-            Click <b>Add expense</b> to start.
-          </div>
-        `;
-
-
-    $('resultCount').textContent =
-      `${list.length} transaction${list.length === 1 ? '' : 's'}`;
-
-
-    const recent =
-      [...expenses]
-        .sort(
-          (a, b) =>
-            b.date.localeCompare(
-              a.date
-            )
-        )
-        .slice(0, 6);
-
-
-    $('recentList').innerHTML =
-      recent.length
-        ? recent.map(row).join('')
-        : `
-          <div class="p-8 text-center text-sm text-slate-500">
-            No expenses yet.
-          </div>
-        `;
-
-
-    const c = cats();
-
-    const max =
-      c[0]?.[1] || 1;
-
-
-    $('topCategories').innerHTML =
-      c.length
-        ? c
-            .slice(0, 5)
-            .map(
-              ([n, v]) => `
-                <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-
-                  <span class="text-sm font-semibold">
-                    ${icons[n] || '📦'}
-                    ${safe(n)}
-                  </span>
-
-                  <span class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-
-                    <i
-                      class="block h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500"
-                      style="width:${(v / max) * 100}%"
-                    ></i>
-
-                  </span>
-
-                  <b>${money(v)}</b>
-
-                </div>
-              `
-            )
-            .join('')
-        : `
-          <p class="text-sm text-slate-500">
-            No category data yet.
-          </p>
-        `;
-
-
-    $('chart').innerHTML =
-      $('topCategories').innerHTML;
-
-
-    $('topCategory').textContent =
-      c[0]?.[0] || '—';
-
-
-    $('topCategoryAmount').textContent =
-      c[0]
-        ? money(c[0][1])
-        : 'No data yet';
-
-
-    const big =
-      expenses.reduce(
-        (a, b) =>
-          !a ||
-          b.amount > a.amount
-            ? b
-            : a,
-        null
-      );
-
-
-    $('largestExpense').textContent =
-      big
-        ? money(big.amount)
-        : '₦0';
-
-
-    $('largestExpenseName').textContent =
-      big?.name ||
-      'No data yet';
-
-
-    $('transactionTotal').textContent =
-      expenses.length;
-
+    list.sort((a,b)=>{
+      if(sort==='highest')return Number(b.amount)-Number(a.amount);
+      if(sort==='lowest')return Number(a.amount)-Number(b.amount);
+      if(sort==='oldest')return String(a.date).localeCompare(String(b.date));
+      return String(b.date).localeCompare(String(a.date));
+    });
+    $('allList').innerHTML=list.length?list.map(row).join(''):'<div class="px-4 py-12 text-center"><div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-2xl dark:bg-emerald-500/10">🧾</div><b class="block">No matching expenses</b><p class="mt-1 text-sm text-slate-500">Try another search or add an expense.</p></div>';
+    $('resultCount').textContent=`${list.length} transaction${list.length===1?'':'s'}`;
+    const recent=[...expenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
+    $('recentList').innerHTML=recent.length?recent.map(row).join(''):'<div class="rounded-2xl bg-slate-50 px-4 py-10 text-center dark:bg-slate-800/50"><div class="mb-2 text-3xl">✨</div><b class="text-sm">A fresh start</b><p class="mt-1 text-xs text-slate-500">Record an expense and it will appear here.</p><button type="button" onclick="openExpense()" class="mt-4 text-sm font-extrabold text-emerald-600">＋ Add your first expense</button></div>';
+    const c=cats();
+    $('topCategories').innerHTML=categoryBars(c.slice(0,5));
+    $('chart').innerHTML=categoryBars(c);
+    $('topCategory').textContent=c[0]?.[0]||'—';
+    $('topCategoryAmount').textContent=c[0]?money(c[0][1]):'No data yet';
+    const big=expenses.reduce((a,b)=>!a||Number(b.amount)>Number(a.amount)?b:a,null);
+    $('largestExpense').textContent=big?money(big.amount):'₦0';
+    $('largestExpenseName').textContent=big?big.name:'No data yet';
+    $('transactionTotal').textContent=expenses.length;
   };
 
-
-  /* =========================================================
-     ACCOUNT UI
-  ========================================================= */
+  async function cloudLoad() {
+    if(!supabase||!user)return;
+    const {data,error}=await supabase.from('expenses').select('*').eq('user_id',user.id).order('expense_date',{ascending:false});
+    if(error){console.error('CLOUD LOAD ERROR:',error);toast('Could not load cloud expenses. Please refresh and try again.');return;}
+    expenses=(data||[]).map(e=>({id:e.id,name:e.name,amount:Number(e.amount),date:e.expense_date,category:e.category,note:e.note||''}));
+    persist();render();
+  }
+  async function cloudUpsert(item) {
+    if(!supabase||!user)return;
+    const payload={id:item.id,user_id:user.id,name:item.name,amount:item.amount,expense_date:item.date,category:item.category,note:item.note||''};
+    const {error}=await supabase.from('expenses').upsert(payload);
+    if(error){console.error('CLOUD SAVE ERROR:',error);toast('Cloud sync failed. Your change may only be saved on this device.');}
+  }
+  async function cloudDelete(id) {
+    if(!supabase||!user)return;
+    const {error}=await supabase.from('expenses').delete().eq('id',id).eq('user_id',user.id);
+    if(error){console.error('CLOUD DELETE ERROR:',error);toast('Cloud delete failed. Refresh to check the saved record.');}
+  }
 
   function updateAccountUI() {
-
-    if (user) {
-
-      $('accountStatus').textContent =
-        user.email ||
-        'Signed in';
-
-      $('accountHint').textContent =
-        'Cloud sync is on.';
-
-      $('accountButton').textContent =
-        'Sign out';
-
+    if(user){
+      $('accountStatus').textContent=user.email||'Signed in';
+      $('accountHint').textContent='Cloud sync is on.';
+      $('accountButton').textContent='Sign out';
+      $('statusDot').className='h-2.5 w-2.5 rounded-full bg-emerald-400';
     } else {
-
-      $('accountStatus').textContent =
-        'Not signed in';
-
-      $('accountHint').textContent =
-        accessMessage ||
-        'Sign in to sync across devices.';
-
-      $('accountButton').textContent =
-        'Sign in';
-
+      $('accountStatus').textContent=supabase?'Not signed in':'Local mode';
+      $('accountHint').textContent=accessMessage||(supabase?'Sign in to sync across devices.':'Saved in this browser.');
+      $('accountButton').textContent='Sign in';
+      $('statusDot').className='h-2.5 w-2.5 rounded-full bg-amber-400';
     }
-
   }
-
-
-  /* =========================================================
-     AUTH MODAL
-  ========================================================= */
-
-  window.openAuth = function() {
-
-    $('authModal')
-      .classList
-      .add('open');
-
-  };
-
-
-  function closeAuth() {
-
-    $('authModal')
-      .classList
-      .remove('open');
-
-  }
-
-
-  /* =========================================================
-     AUTH MODE
-  ========================================================= */
-
+  window.openAuth=function(){$('authModal').classList.add('open');document.body.style.overflow='hidden';};
+  function closeAuth(){$('authModal').classList.remove('open');document.body.style.overflow='';}
   function setAuthMode(mode) {
-
-    authMode = mode;
-
-    const signup =
-      mode === 'signup';
-
-    $('authTitle').textContent =
-      signup
-        ? 'Create your SpendWise account'
-        : 'Welcome to SpendWise';
-
-    $('authSubtitle').textContent =
-      signup
-        ? 'Create an account. Your account must be approved by an admin before you can use cloud sync.'
-        : 'Sign in to sync your expenses across devices.';
-
-    $('authSubmit').textContent =
-      signup
-        ? 'Create account'
-        : 'Sign in';
-
-    $('authToggle').textContent =
-      signup
-        ? 'I already have an account'
-        : 'Create an account instead';
-
+    authMode=mode;const signup=mode==='signup';
+    $('authTitle').textContent=signup?'Create your SpendWise account':'Welcome to SpendWise';
+    $('authSubtitle').textContent=signup?'Create an account. An admin must approve it before cloud access is enabled.':'Sign in to sync your expenses across devices.';
+    $('authSubmit').textContent=signup?'Create account':'Sign in';
+    $('authToggle').textContent=signup?'I already have an account':'Create an account instead';
+    $('authPassword').autocomplete=signup?'new-password':'current-password';
   }
-
-
-  /* =========================================================
-     GET USER PROFILE
-  ========================================================= */
-
   async function getProfile(currentUser) {
-
-    if (!supabase || !currentUser) {
-      return null;
-    }
-
-    const {
-      data,
-      error
-    } = await supabase
-      .from('profiles')
-      .select(
-        'id,email,full_name,role,status'
-      )
-      .eq(
-        'id',
-        currentUser.id
-      )
-      .maybeSingle();
-
-    if (error) {
-
-      console.error(
-        'PROFILE ERROR:',
-        error
-      );
-
-      return null;
-
-    }
-
+    const {data,error}=await supabase.from('profiles').select('id,email,full_name,role,status').eq('id',currentUser.id).maybeSingle();
+    if(error){console.error('PROFILE ERROR:',error);return null;}
     return data;
-
   }
-
-
-  /* =========================================================
-     ACCESS CONTROL
-  ========================================================= */
-
   async function handleSession(session) {
-
-    const currentUser =
-      session?.user || null;
-
-
-    /*
-      No logged-in user.
-    */
-
-    if (!currentUser) {
-
-      user = null;
-
-      updateAccountUI();
-
-      return;
-
+    const check=++sessionCheck, currentUser=session?.user||null;
+    if(!currentUser){user=null;updateAccountUI();return;}
+    const profile=await getProfile(currentUser);
+    if(check!==sessionCheck)return;
+    if(!profile){
+      accessMessage='Your account profile is not ready yet.';
+      toast('Your profile is not ready yet. Contact the administrator if this continues.');
+      user=null;updateAccountUI();await supabase.auth.signOut();return;
     }
-
-
-    console.log(
-      'Checking SpendWise access...'
-    );
-
-    console.log(
-      'Logged in as:',
-      currentUser.email
-    );
-
-
-    const profile =
-      await getProfile(
-        currentUser
-      );
-
-
-    console.log(
-      'Your profile:',
-      profile
-    );
-
-
-    /*
-      Profile doesn't exist.
-    */
-
-    if (!profile) {
-
-      accessMessage =
-        'Your account profile is not ready yet.';
-
-      toast(
-        'Your SpendWise profile is not ready yet.'
-      );
-
-      await supabase.auth.signOut();
-
-      user = null;
-
-      updateAccountUI();
-
-      return;
-
+    if(profile.status==='approved'&&(profile.role==='admin'||profile.role==='user')){
+      user=currentUser;accessMessage='';updateAccountUI();await cloudLoad();return;
     }
-
-
-    /*
-      ADMIN
-      Admin is allowed if role=admin AND approved.
-    */
-
-    if (
-      profile.role === 'admin' &&
-      profile.status === 'approved'
-    ) {
-
-      user =
-        currentUser;
-
-      accessMessage = '';
-
-      updateAccountUI();
-
-      console.log(
-        'Admin access granted.'
-      );
-
-      await cloudLoad();
-
-      return;
-
-    }
-
-
-    /*
-      NORMAL APPROVED USER
-    */
-
-    if (
-      profile.role === 'user' &&
-      profile.status === 'approved'
-    ) {
-
-      user =
-        currentUser;
-
-      accessMessage = '';
-
-      updateAccountUI();
-
-      console.log(
-        'Approved user access granted.'
-      );
-
-      await cloudLoad();
-
-      return;
-
-    }
-
-
-    /*
-      PENDING
-    */
-
-    if (
-      profile.status === 'pending'
-    ) {
-
-      accessMessage =
-        'Waiting for admin approval.';
-
-      toast(
-        'Your account is pending admin approval.'
-      );
-
-      await supabase.auth.signOut();
-
-      user = null;
-
-      updateAccountUI();
-
-      return;
-
-    }
-
-
-    /*
-      REJECTED
-    */
-
-    if (
-      profile.status === 'rejected'
-    ) {
-
-      accessMessage =
-        'Your application was rejected.';
-
-      toast(
-        'Your SpendWise application was rejected.'
-      );
-
-      await supabase.auth.signOut();
-
-      user = null;
-
-      updateAccountUI();
-
-      return;
-
-    }
-
-
-    /*
-      SUSPENDED
-    */
-
-    if (
-      profile.status === 'suspended'
-    ) {
-
-      accessMessage =
-        'Your account has been suspended.';
-
-      toast(
-        'Your SpendWise account has been suspended.'
-      );
-
-      await supabase.auth.signOut();
-
-      user = null;
-
-      updateAccountUI();
-
-      return;
-
-    }
-
-
-    /*
-      Anything unexpected.
-    */
-
-    accessMessage =
-      'Your account cannot access SpendWise yet.';
-
-    toast(
-      'Your account cannot access SpendWise yet.'
-    );
-
-    await supabase.auth.signOut();
-
-    user = null;
-
-    updateAccountUI();
-
+    user=null;
+    const messages={pending:'Your account is waiting for admin approval.',rejected:'Your account application was rejected.',suspended:'Your account has been suspended.'};
+    accessMessage=messages[profile.status]||'Your account cannot access SpendWise yet.';
+    toast(accessMessage);updateAccountUI();await supabase.auth.signOut();
   }
-
-
-  /* =========================================================
-     SUPABASE INITIALIZATION
-  ========================================================= */
-
   async function initCloud() {
-
-    if (
-      !CONFIG.url ||
-      !CONFIG.key ||
-      !window.supabase
-    ) {
-
-      updateAccountUI();
-
-      return;
-
-    }
-
-
+    if(!CONFIG.url||!CONFIG.key||!window.supabase){updateAccountUI();return;}
     try {
-
-      supabase =
-        window.supabase.createClient(
-          CONFIG.url,
-          CONFIG.key
-        );
-
-
-      /*
-        Check existing session.
-      */
-
-      const {
-        data,
-        error
-      } =
-        await supabase.auth.getSession();
-
-
-      if (error) {
-
-        console.error(
-          'SESSION ERROR:',
-          error
-        );
-
-      }
-
-
-      await handleSession(
-        data.session
-      );
-
-
-      /*
-        Listen for future login/logout.
-      */
-
-      supabase.auth.onAuthStateChange(
-        (_event, session) => {
-
-          /*
-            Delay this slightly so Supabase
-            can finish updating its session.
-          */
-
-          setTimeout(
-            () => {
-              handleSession(session);
-            },
-            0
-          );
-
-        }
-      );
-
-
-    } catch (error) {
-
-      console.error(
-        'Supabase initialization failed:',
-        error
-      );
-
-      toast(
-        'Cloud connection failed. Local mode is still available.'
-      );
-
-    }
-
+      supabase=window.supabase.createClient(CONFIG.url,CONFIG.key);
+      updateAccountUI();
+      const {data,error}=await supabase.auth.getSession();
+      if(error)console.error('SESSION ERROR:',error);
+      await handleSession(data?.session);
+      supabase.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>handleSession(session),0);});
+    } catch(error){console.error('Supabase initialization failed:',error);toast('Cloud connection failed. Local mode is available only if cloud is not configured.');}
   }
 
-
-  /* =========================================================
-     AUTH FORM
-  ========================================================= */
-
-  $('authForm')
-    .addEventListener(
-      'submit',
-      async e => {
-
-        e.preventDefault();
-
-
-        if (!supabase) {
-
-          toast(
-            'Supabase is not configured yet.'
-          );
-
-          return;
-
-        }
-
-
-        const email =
-          $('authEmail')
-            .value
-            .trim();
-
-
-        const password =
-          $('authPassword')
-            .value;
-
-
-        /*
-          SIGN UP
-        */
-
-        if (
-          authMode === 'signup'
-        ) {
-
-          const {
-            data,
-            error
-          } =
-            await supabase.auth.signUp({
-
-              email,
-
-              password
-
-            });
-
-
-          if (error) {
-
-            console.error(
-              'SIGNUP ERROR:',
-              error
-            );
-
-            toast(
-              error.message
-            );
-
-            return;
-
-          }
-
-
-          /*
-            If email confirmation is enabled,
-            there will be no session yet.
-          */
-
-          if (!data.session) {
-
-            closeAuth();
-
-            toast(
-              'Account created. Confirm your email, then wait for admin approval.'
-            );
-
-          } else {
-
-            closeAuth();
-
-            toast(
-              'Account created. Waiting for admin approval.'
-            );
-
-          }
-
-          return;
-
-        }
-
-
-        /*
-          SIGN IN
-        */
-
-        const {
-          error
-        } =
-          await supabase.auth
-            .signInWithPassword({
-
-              email,
-
-              password
-
-            });
-
-
-        if (error) {
-
-          console.error(
-            'LOGIN ERROR:',
-            error
-          );
-
-          toast(
-            error.message
-          );
-
-          return;
-
-        }
-
-
-        /*
-          handleSession() will now
-          check the profile status.
-        */
-
+  $('authForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(!supabase){toast('Supabase is not configured. Check config.js.');return;}
+    const email=$('authEmail').value.trim(),password=$('authPassword').value;
+    $('authSubmit').disabled=true;$('authSubmit').classList.add('opacity-60');
+    try {
+      if(authMode==='signup'){
+        const {data,error}=await supabase.auth.signUp({email,password});
+        if(error)throw error;
         closeAuth();
-
-      }
-    );
-
-
-  /* =========================================================
-     AUTH TOGGLE
-  ========================================================= */
-
-  $('authToggle')
-    .addEventListener(
-      'click',
-      () =>
-        setAuthMode(
-          authMode === 'signin'
-            ? 'signup'
-            : 'signin'
-        )
-    );
-
-
-  /* =========================================================
-     AUTH CLOSE
-  ========================================================= */
-
-  $('authClose')
-    .addEventListener(
-      'click',
-      () => {
-
+        toast(data.session?'Account created. Wait for admin approval.':'Account created. Confirm your email, then wait for admin approval.');
+      } else {
+        const {error}=await supabase.auth.signInWithPassword({email,password});
+        if(error)throw error;
         closeAuth();
-
       }
-    );
-
-
-  /* =========================================================
-     ACCOUNT BUTTON
-  ========================================================= */
-
-  $('accountButton')
-    .addEventListener(
-      'click',
-      async () => {
-
-        if (
-          user &&
-          supabase
-        ) {
-
-          await supabase.auth.signOut();
-
-          user = null;
-
-          accessMessage = '';
-
-          updateAccountUI();
-
-          toast(
-            'Signed out.'
-          );
-
-        } else {
-
-          openAuth();
-
-        }
-
-      }
-    );
-
-
-  /* =========================================================
-     CLOSE MODALS WHEN CLICKING OUTSIDE
-  ========================================================= */
-
-  $('expenseModal')
-    .addEventListener(
-      'click',
-      e => {
-
-        if (
-          e.target ===
-          $('expenseModal')
-        ) {
-
-          closeExpense();
-
-        }
-
-      }
-    );
-
-
-  $('authModal')
-    .addEventListener(
-      'click',
-      e => {
-
-        if (
-          e.target ===
-          $('authModal')
-        ) {
-
-          closeAuth();
-
-        }
-
-      }
-    );
-
-
-  /* =========================================================
-     PAGE LOAD
-  ========================================================= */
-
-  window.addEventListener(
-    'load',
-    async () => {
-
-      if (
-        localStorage.getItem(
-          'spendwise_theme'
-        ) === 'dark'
-      ) {
-
-        document.documentElement
-          .classList
-          .add('dark');
-
-      }
-
-      setAuthMode('signin');
-
-      showView('dashboard');
-
-      render();
-
-      await initCloud();
-
-    }
-  );
-
-
+    } catch(error){console.error('AUTH ERROR:',error);toast(error.message||'Authentication failed. Please try again.');}
+    finally{$('authSubmit').disabled=false;$('authSubmit').classList.remove('opacity-60');}
+  });
+  $('authToggle').addEventListener('click',()=>setAuthMode(authMode==='signin'?'signup':'signin'));
+  $('authClose').addEventListener('click',closeAuth);
+  $('accountButton').addEventListener('click',async()=>{
+    if(user&&supabase){
+      const {error}=await supabase.auth.signOut();
+      if(error){toast('Could not sign out. Try again.');return;}
+      user=null;accessMessage='';updateAccountUI();toast('Signed out.');
+    } else openAuth();
+  });
+  ['expenseModal','authModal'].forEach(id=>$(id).addEventListener('click',e=>{
+    if(e.target!==$(id))return;
+    if(id==='expenseModal')closeExpense();else closeAuth();
+  }));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeExpense();closeAuth();closeMenu();}});
+  window.addEventListener('resize',()=>{if(window.matchMedia('(min-width: 1024px)').matches){$('overlay').classList.add('hidden');$('sidebar').classList.remove('-translate-x-full');}});
+  window.addEventListener('load',async()=>{
+    const dark=localStorage.getItem('spendwise_theme')==='dark';
+    document.documentElement.classList.toggle('dark',dark);
+    $('themeLabel').textContent=dark?'Dark':'Light';
+    document.querySelector('meta[name="theme-color"]').content=dark?'#020617':'#0f172a';
+    setAuthMode('signin');showView('dashboard');render();await initCloud();
+  });
 })();
 </script>
-
 </body>
 </html>
