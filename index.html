@@ -22,6 +22,12 @@ tailwind.config = {
 :root{color-scheme:light}
 *{box-sizing:border-box}
 body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#privacyWelcome{display:none}
+body.auth-gate #privacyWelcome{display:flex}
+body.auth-gate #appShell,body.auth-gate .mobile-bottom{display:none!important}
+body.auth-gate #authModal{pointer-events:auto}
+#privacyWelcome{position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;overflow-y:auto;padding:24px;background:radial-gradient(circle at top right,rgba(16,185,129,.22),transparent 38%),#020617;color:#f8fafc}
+
 button,input,select,textarea{font:inherit}
 button{touch-action:manipulation}
 .view{display:none}.view.active{display:block}
@@ -45,8 +51,20 @@ button{touch-action:manipulation}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-<div class="min-h-screen">
+<body class="auth-gate min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+<section id="privacyWelcome" aria-labelledby="welcomeTitle">
+  <div class="w-full max-w-md text-center">
+    <div class="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl font-black text-white shadow-xl">S</div>
+    <p class="text-xs font-extrabold uppercase tracking-[.28em] text-emerald-300">YOUR MONEY, IN FOCUS</p>
+    <h1 id="welcomeTitle" class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Welcome to SpendWise</h1>
+    <p class="mx-auto mt-4 max-w-sm text-sm leading-6 text-slate-300">Sign in to access your private expense dashboard. Your transactions stay hidden until you sign in to an approved account.</p>
+    <button id="welcomeSignIn" type="button" class="mt-8 w-full rounded-xl bg-emerald-500 px-5 py-4 font-extrabold text-white transition hover:bg-emerald-400">Sign in to continue</button>
+    <button id="welcomeSignUp" type="button" class="mt-3 w-full rounded-xl border border-white/15 px-5 py-3.5 font-bold text-slate-200 transition hover:bg-white/5">Create an account</button>
+    <p id="welcomeMessage" class="mt-5 min-h-5 text-sm text-amber-300" aria-live="polite"></p>
+  </div>
+</section>
+
+<div id="appShell" class="min-h-screen">
   <!-- Mobile drawer overlay -->
   <div id="overlay" onclick="closeMenu()" class="fixed inset-0 z-40 hidden bg-slate-950/60 backdrop-blur-sm lg:hidden"></div>
 
@@ -215,8 +233,18 @@ button{touch-action:manipulation}
   let sessionCheck = 0;
   const $ = id => document.getElementById(id);
 
+  function setAccessGate(isSignedIn, message='') {
+    document.body.classList.toggle('auth-gate', !isSignedIn);
+    $('welcomeMessage').textContent = message;
+  }
+  function clearPrivateExpenses() {
+    expenses = [];
+    try { localStorage.removeItem(KEY); } catch {}
+    render();
+  }
+
   // Cloudflare Turnstile public site key. Never put the secret key in this file.
-  const TURNSTILE_SITE_KEY = '0x4AAAAAAFWnW5KhP3rdjzNz';
+  const TURNSTILE_SITE_KEY = '0x4AAAAAAFXBIx5kLqdwIn94';
   let turnstileWidgetId = null;
   let turnstileToken = '';
   let turnstileRenderAttempts = 0;
@@ -275,7 +303,7 @@ button{touch-action:manipulation}
   };
 
   window.openExpense = function(edit) {
-    if (supabase && !user) {
+    if (!supabase || !user) {
       toast(accessMessage || 'Please sign in with an approved account first.');
       openAuth();return;
     }
@@ -305,22 +333,46 @@ button{touch-action:manipulation}
     const category=$('expenseCategory').value;
     const note=$('expenseNote').value.trim();
     if(!name||!Number.isFinite(amount)||amount<=0||!date||!category){toast('Please check all required fields.');return;}
-    if(supabase&&!user){toast('Please sign in with an approved account first.');openAuth();return;}
+    if(!supabase||!user){toast('Please sign in with an approved account first.');openAuth();return;}
     const wasEditing=!!editingId;
-    const id=editingId||crypto.randomUUID();
+    const previous=expenses.map(x=>({...x}));
+    let id=editingId;
+    try { if(!id) id=crypto.randomUUID(); }
+    catch { toast('Could not create an expense ID. Please refresh and try again.');return; }
     const item={id,name,amount,date,category,note};
-    if(editingId) expenses=expenses.map(x=>String(x.id)===String(editingId)?item:x);
+    if(wasEditing) expenses=expenses.map(x=>String(x.id)===String(editingId)?item:x);
     else expenses.unshift(item);
-    persist();render();closeExpense();
-    toast(wasEditing?'Expense updated ✓':'Expense recorded ✓');
-    await cloudUpsert(item);
+    $('saveExpenseButton').disabled=true;
+    $('saveExpenseButton').textContent='Saving…';
+    try {
+      const saved=await cloudUpsert(item);
+      if(!saved){expenses=previous;persist();render();return;}
+      persist();render();closeExpense();
+      toast(wasEditing?'Expense updated successfully.':'Expense saved successfully.');
+    } catch(error) {
+      console.error('SAVE EXPENSE ERROR:',error);
+      expenses=previous;persist();render();
+      toast('Could not save the expense. Please try again.');
+    } finally {
+      $('saveExpenseButton').disabled=false;
+      $('saveExpenseButton').textContent=wasEditing?'Update expense':'Save expense';
+    }
   };
   window.deleteExpense = async function(id) {
+    if(!user||!supabase){toast('Please sign in first.');openAuth();return;}
     if(!confirm('Delete this expense permanently?'))return;
-    const previous=expenses;
+    const previous=expenses.map(x=>({...x}));
     expenses=expenses.filter(x=>String(x.id)!==String(id));
-    persist();render();toast('Expense deleted.');
-    await cloudDelete(id);
+    persist();render();
+    try {
+      const deleted=await cloudDelete(id);
+      if(!deleted){expenses=previous;persist();render();return;}
+      toast('Expense deleted successfully.');
+    } catch(error) {
+      console.error('DELETE EXPENSE ERROR:',error);
+      expenses=previous;persist();render();
+      toast('Could not delete the expense. Please try again.');
+    }
   };
 
   function row(e) {
@@ -380,15 +432,17 @@ button{touch-action:manipulation}
     persist();render();
   }
   async function cloudUpsert(item) {
-    if(!supabase||!user)return;
+    if(!supabase||!user) return false;
     const payload={id:item.id,user_id:user.id,name:item.name,amount:item.amount,expense_date:item.date,category:item.category,note:item.note||''};
     const {error}=await supabase.from('expenses').upsert(payload);
-    if(error){console.error('CLOUD SAVE ERROR:',error);toast('Cloud sync failed. Your change may only be saved on this device.');}
+    if(error){console.error('CLOUD SAVE ERROR:',error);toast('Could not sync this expense. Please try again.');return false;}
+    return true;
   }
   async function cloudDelete(id) {
-    if(!supabase||!user)return;
+    if(!supabase||!user) return false;
     const {error}=await supabase.from('expenses').delete().eq('id',id).eq('user_id',user.id);
-    if(error){console.error('CLOUD DELETE ERROR:',error);toast('Cloud delete failed. Refresh to check the saved record.');}
+    if(error){console.error('CLOUD DELETE ERROR:',error);toast('Could not delete from cloud. Please try again.');return false;}
+    return true;
   }
 
   function updateAccountUI() {
@@ -472,7 +526,7 @@ button{touch-action:manipulation}
   function setAuthMode(mode) {
     authMode=mode;const signup=mode==='signup';
     $('authTitle').textContent=signup?'Create your SpendWise account':'Welcome to SpendWise';
-    $('authSubtitle').textContent=signup?'Create your account and start managing your expenses.':'Sign in to sync your expenses across devices.';
+    $('authSubtitle').textContent=signup?'Create an account. An admin must approve it before cloud access is enabled.':'Sign in to sync your expenses across devices.';
     $('authSubmit').textContent=signup?'Create account':'Sign in';
     $('authToggle').textContent=signup?'I already have an account':'Create an account instead';
     $('authPassword').autocomplete=signup?'new-password':'current-password';
@@ -484,21 +538,23 @@ button{touch-action:manipulation}
   }
   async function handleSession(session) {
     const check=++sessionCheck, currentUser=session?.user||null;
-    if(!currentUser){user=null;updateAccountUI();return;}
+    if(!currentUser){
+      user=null;clearPrivateExpenses();updateAccountUI();setAccessGate(false, accessMessage);return;
+    }
     const profile=await getProfile(currentUser);
     if(check!==sessionCheck)return;
     if(!profile){
       accessMessage='Your account profile is not ready yet.';
       toast('Your profile is not ready yet. Contact the administrator if this continues.');
-      user=null;updateAccountUI();await supabase.auth.signOut();return;
+      user=null;clearPrivateExpenses();updateAccountUI();setAccessGate(false, accessMessage);await supabase.auth.signOut();return;
     }
     if(profile.status==='approved'&&(profile.role==='admin'||profile.role==='user')){
-      user=currentUser;accessMessage='';updateAccountUI();await cloudLoad();return;
+      user=currentUser;accessMessage='';setAccessGate(true);updateAccountUI();await cloudLoad();return;
     }
     user=null;
     const messages={pending:'Your account is waiting for admin approval.',rejected:'Your account application was rejected.',suspended:'Your account has been suspended.'};
     accessMessage=messages[profile.status]||'Your account cannot access SpendWise yet.';
-    toast(accessMessage);updateAccountUI();await supabase.auth.signOut();
+    toast(accessMessage);clearPrivateExpenses();setAccessGate(false, accessMessage);updateAccountUI();await supabase.auth.signOut();
   }
   async function initCloud() {
     if(!CONFIG.url||!CONFIG.key||!window.supabase){updateAccountUI();return;}
@@ -546,8 +602,8 @@ button{touch-action:manipulation}
         if (error) throw error;
         closeAuth();
         toast(data.session
-          ? 'Account created successfully! You can start using SpendWise.'
-          : 'Account created! Please confirm your email, then sign in to SpendWise.');
+          ? 'Account created. Wait for admin approval.'
+          : 'Account created. Confirm your email, then wait for admin approval.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -572,13 +628,28 @@ button{touch-action:manipulation}
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
     resetTurnstile();
   });
+  $('welcomeSignIn').addEventListener('click',()=>{setAuthMode('signin');openAuth();});
+  $('welcomeSignUp').addEventListener('click',()=>{setAuthMode('signup');openAuth();});
   $('authClose').addEventListener('click',closeAuth);
   $('accountButton').addEventListener('click',async()=>{
     if(user&&supabase){
-      const {error}=await supabase.auth.signOut();
-      if(error){toast('Could not sign out. Try again.');return;}
-      user=null;accessMessage='';updateAccountUI();toast('Signed out.');
-    } else openAuth();
+      const previousUser=user;
+      user=null;accessMessage='';setAccessGate(false);clearPrivateExpenses();updateAccountUI();
+      try {
+        const {error}=await supabase.auth.signOut({scope:'local'});
+        if(error) {
+          console.error('SIGN OUT ERROR:',error);
+          toast('Dashboard hidden, but sign-out reported an error. Refresh and check your connection.');
+          return;
+        }
+        toast('Signed out. Your dashboard is now hidden.');
+      } catch(error) {
+        console.error('SIGN OUT ERROR:',error);
+        toast('Dashboard hidden. Sign-out could not reach the server; check your connection.');
+      }
+    } else {
+      setAuthMode('signin');openAuth();
+    }
   });
   ['expenseModal','authModal'].forEach(id=>$(id).addEventListener('click',e=>{
     if(e.target!==$(id))return;
@@ -591,7 +662,7 @@ button{touch-action:manipulation}
     document.documentElement.classList.toggle('dark',dark);
     $('themeLabel').textContent=dark?'Dark':'Light';
     document.querySelector('meta[name="theme-color"]').content=dark?'#020617':'#0f172a';
-    setAuthMode('signin');showView('dashboard');render();await initCloud();
+    setAccessGate(false);setAuthMode('signin');showView('dashboard');render();await initCloud();
   });
 })();
 </script>
