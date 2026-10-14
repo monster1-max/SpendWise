@@ -8,6 +8,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
@@ -187,6 +188,7 @@ button{touch-action:manipulation}
     <form id="authForm" class="space-y-4">
       <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Email address</span><input id="authEmail" required type="email" autocomplete="email" class="field" placeholder="you@example.com"></label>
       <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Password</span><input id="authPassword" required type="password" minlength="6" autocomplete="current-password" class="field" placeholder="At least 6 characters"></label>
+      <div id="turnstile-container" class="flex min-h-[65px] justify-center" aria-label="Security verification"></div>
       <button id="authSubmit" type="submit" class="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3.5 font-extrabold text-white">Sign in</button>
     </form>
     <button id="authToggle" type="button" class="mt-4 w-full text-sm font-extrabold text-emerald-600">Create an account instead</button>
@@ -212,6 +214,14 @@ button{touch-action:manipulation}
   let accessMessage = '';
   let sessionCheck = 0;
   const $ = id => document.getElementById(id);
+
+  // Cloudflare Turnstile public site key. Never put the secret key in this file.
+  const TURNSTILE_SITE_KEY = '0x4AAAAAAFWnW5KhP3rdjzNz';
+  let turnstileWidgetId = null;
+  let turnstileToken = '';
+  let turnstileRenderAttempts = 0;
+  let turnstileRendering = false;
+
   const icons = {Food:'🍔',Data:'📶',Clothes:'👕',Transport:'🚗',Entertainment:'🎮',Bills:'💡',Shopping:'🛍️',Other:'📦'};
 
   try {
@@ -394,8 +404,71 @@ button{touch-action:manipulation}
       $('statusDot').className='h-2.5 w-2.5 rounded-full bg-amber-400';
     }
   }
-  window.openAuth=function(){$('authModal').classList.add('open');document.body.style.overflow='hidden';};
-  function closeAuth(){$('authModal').classList.remove('open');document.body.style.overflow='';}
+  window.openAuth = function() {
+    $('authModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderTurnstile();
+  };
+
+  function renderTurnstile() {
+    const container = $('turnstile-container');
+    if (!container || turnstileWidgetId !== null || turnstileRendering) return;
+
+    if (!window.turnstile) {
+      if (turnstileRenderAttempts >= 20) {
+        toast('Security verification did not load. Check your connection and refresh.');
+        return;
+      }
+      turnstileRenderAttempts++;
+      setTimeout(renderTurnstile, 500);
+      return;
+    }
+
+    if (!TURNSTILE_SITE_KEY) {
+      toast('Security verification is not configured.');
+      return;
+    }
+
+    turnstileRendering = true;
+    try {
+      turnstileWidgetId = window.turnstile.render(container, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: token => { turnstileToken = token; },
+        'expired-callback': () => {
+          turnstileToken = '';
+          toast('Verification expired. Please verify again.');
+        },
+        'error-callback': () => {
+          turnstileToken = '';
+          toast('Verification failed to load. Please try again.');
+        }
+      });
+    } catch (error) {
+      console.error('Turnstile initialization error:', error);
+      turnstileWidgetId = null;
+      toast('Security verification could not start. Refresh and try again.');
+    } finally {
+      turnstileRendering = false;
+    }
+  }
+
+  function resetTurnstile() {
+    turnstileToken = '';
+    if (window.turnstile && turnstileWidgetId !== null) {
+      try { window.turnstile.reset(turnstileWidgetId); }
+      catch (error) {
+        console.error('Turnstile reset error:', error);
+        turnstileWidgetId = null;
+        $('turnstile-container').innerHTML = '';
+      }
+    }
+  }
+
+  function closeAuth() {
+    $('authModal').classList.remove('open');
+    document.body.style.overflow = '';
+    resetTurnstile();
+  }
   function setAuthMode(mode) {
     authMode=mode;const signup=mode==='signup';
     $('authTitle').textContent=signup?'Create your SpendWise account':'Welcome to SpendWise';
@@ -439,26 +512,66 @@ button{touch-action:manipulation}
     } catch(error){console.error('Supabase initialization failed:',error);toast('Cloud connection failed. Local mode is available only if cloud is not configured.');}
   }
 
-  $('authForm').addEventListener('submit',async e=>{
+  $('authForm').addEventListener('submit', async e => {
     e.preventDefault();
-    if(!supabase){toast('Supabase is not configured. Check config.js.');return;}
-    const email=$('authEmail').value.trim(),password=$('authPassword').value;
-    $('authSubmit').disabled=true;$('authSubmit').classList.add('opacity-60');
+    if (!supabase) {
+      toast('Supabase is not configured. Check config.js.');
+      return;
+    }
+
+    const email = $('authEmail').value.trim();
+    const password = $('authPassword').value;
+    if (!email || !password) {
+      toast('Enter your email and password.');
+      return;
+    }
+    if (!turnstileToken) {
+      toast('Please complete the security verification first.');
+      renderTurnstile();
+      return;
+    }
+
+    const captchaToken = turnstileToken;
+    $('authSubmit').disabled = true;
+    $('authSubmit').classList.add('opacity-60');
+    $('authSubmit').textContent = 'Verifying…';
+
     try {
-      if(authMode==='signup'){
-        const {data,error}=await supabase.auth.signUp({email,password});
-        if(error)throw error;
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { captchaToken }
+        });
+        if (error) throw error;
         closeAuth();
-        toast(data.session?'Account created. Wait for admin approval.':'Account created. Confirm your email, then wait for admin approval.');
+        toast(data.session
+          ? 'Account created. Wait for admin approval.'
+          : 'Account created. Confirm your email, then wait for admin approval.');
       } else {
-        const {error}=await supabase.auth.signInWithPassword({email,password});
-        if(error)throw error;
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken }
+        });
+        if (error) throw error;
         closeAuth();
       }
-    } catch(error){console.error('AUTH ERROR:',error);toast(error.message||'Authentication failed. Please try again.');}
-    finally{$('authSubmit').disabled=false;$('authSubmit').classList.remove('opacity-60');}
+    } catch (error) {
+      console.error('AUTH ERROR:', error);
+      toast(error.message || 'Authentication failed. Please try again.');
+    } finally {
+      resetTurnstile();
+      $('authSubmit').disabled = false;
+      $('authSubmit').classList.remove('opacity-60');
+      $('authSubmit').textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+    }
   });
-  $('authToggle').addEventListener('click',()=>setAuthMode(authMode==='signin'?'signup':'signin'));
+
+  $('authToggle').addEventListener('click', () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+    resetTurnstile();
+  });
   $('authClose').addEventListener('click',closeAuth);
   $('accountButton').addEventListener('click',async()=>{
     if(user&&supabase){
