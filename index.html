@@ -472,7 +472,7 @@ button{touch-action:manipulation}
   function setAuthMode(mode) {
     authMode=mode;const signup=mode==='signup';
     $('authTitle').textContent=signup?'Create your SpendWise account':'Welcome to SpendWise';
-    $('authSubtitle').textContent=signup?'Create an account. An admin must approve it before cloud access is enabled.':'Sign in to sync your expenses across devices.';
+    $('authSubtitle').textContent=signup?'Create your account and start managing your expenses.':'Sign in to sync your expenses across devices.';
     $('authSubmit').textContent=signup?'Create account':'Sign in';
     $('authToggle').textContent=signup?'I already have an account':'Create an account instead';
     $('authPassword').autocomplete=signup?'new-password':'current-password';
@@ -546,8 +546,8 @@ button{touch-action:manipulation}
         if (error) throw error;
         closeAuth();
         toast(data.session
-          ? 'Account created. Wait for admin approval.'
-          : 'Account created. Confirm your email, then wait for admin approval.');
+          ? 'Account created successfully! You can start using SpendWise.'
+          : 'Account created! Please confirm your email, then sign in to SpendWise.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
