@@ -3,461 +3,717 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#173f35">
 <title>SpendWise — Smart Expense Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
 <script>
-tailwind.config = {
-  darkMode: 'class',
-  theme: { extend: {
-    fontFamily: { display: ['Inter','ui-sans-serif','system-ui'] },
-    boxShadow: { soft: '0 12px 35px rgba(15,23,42,.06)' }
-  }}
-};
+tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{display:['Inter','ui-sans-serif','system-ui']}}}};
 </script>
 <style>
-:root{color-scheme:light}
-*{box-sizing:border-box}
-body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-#privacyWelcome{display:none}
-body.auth-gate #privacyWelcome{display:flex}
-body.auth-gate #appShell,body.auth-gate .mobile-bottom{display:none!important}
-body.auth-gate #authModal{pointer-events:auto}
-#privacyWelcome{position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;overflow-y:auto;padding:24px;background:radial-gradient(circle at top right,rgba(16,185,129,.22),transparent 38%),#020617;color:#f8fafc}
-
-button,input,select,textarea{font:inherit}
-button{touch-action:manipulation}
-.view{display:none}.view.active{display:block}
-.modal{display:none}.modal.open{display:flex}
-.nav-active{background:rgba(139,92,246,.17)!important;color:#fff!important}
-.toast{opacity:0;transform:translate(-50%,18px);pointer-events:none;transition:all .22s ease}
-.toast.show{opacity:1;transform:translate(-50%,0)}
-.field{width:100%;min-width:0;border:1px solid #e2e8f0;background:#f8fafc;border-radius:14px;padding:12px 14px;outline:none;transition:border-color .2s,box-shadow .2s}
-.field:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.13)}
-.dark .field{background:#020617;border-color:#334155;color:#f8fafc}
-.card{background:white;border:1px solid #edf0f5;border-radius:22px;box-shadow:0 10px 28px rgba(15,23,42,.035)}
-.dark .card{background:#0f172a;border-color:#1e293b}
-.mobile-bottom{padding-bottom:max(10px,env(safe-area-inset-bottom))}
-@media(max-width:639px){
-  .desktop-add{display:none}
-  .page-wrap{padding:16px 14px 100px}
-  .mobile-bottom{display:grid}
-  .card{border-radius:19px}
-}
-@media(min-width:640px){.mobile-bottom{display:none}}
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{color-scheme:light;--canvas:#f5f5ef;--paper:#fffefa;--ink:#1d2924;--muted:#78817a;--line:#e5e8df;--green:#245b49;--green-dark:#173f35;--mint:#dcebe1;--lime:#c7e58a;--soft:#f0f3eb;--red:#bd5b4a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--canvas);color:var(--ink);font-family:'DM Sans',sans-serif}button,input,select,textarea{font:inherit}button{touch-action:manipulation;cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(36,91,73,.22);outline-offset:2px}
+#privacyWelcome{display:none}body.auth-gate #privacyWelcome{display:flex}body.auth-gate #appShell,body.auth-gate .mobile-bottom{display:none!important}body.auth-gate #authModal{pointer-events:auto}
+#privacyWelcome{position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;overflow:auto;padding:24px;background:var(--green-dark);color:#fffefa}
+.welcome-mark{width:52px;height:52px;border:1px solid rgba(255,255,255,.25);border-radius:17px;display:grid;place-items:center;color:var(--green-dark);background:var(--lime);font:800 24px Manrope,sans-serif;margin:0 auto 22px}
+.welcome-kicker{font-size:11px;letter-spacing:.19em;font-weight:700;color:#c7e58a;text-transform:uppercase}.welcome-title{font:800 clamp(34px,6vw,48px)/1.08 Manrope,sans-serif;letter-spacing:-.055em;margin:13px 0}.welcome-copy{color:#d6e1da;line-height:1.7;font-size:14px;max-width:360px;margin:0 auto}
+.welcome-primary,.welcome-secondary{width:100%;border-radius:13px;padding:14px 18px;font-weight:700;margin-top:12px}.welcome-primary{background:var(--lime);color:var(--green-dark);border:1px solid var(--lime)}.welcome-secondary{background:transparent;border:1px solid rgba(255,255,255,.23);color:#fffefa}
+#appShell{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;z-index:50;width:270px;background:var(--green-dark);color:#f7f7ef;padding:24px 16px 16px;display:flex;flex-direction:column;transform:translateX(0);transition:transform .25s ease;overflow-y:auto;overscroll-behavior:contain}.sidebar.-translate-x-full{transform:translateX(-100%)}
+.brand{display:flex;align-items:center;gap:11px;padding:3px 10px 28px;text-align:left;background:none;border:0;color:inherit}.brand-mark{width:39px;height:39px;display:grid;place-items:center;border-radius:13px;background:var(--lime);color:var(--green-dark);font:800 20px Manrope,sans-serif}.brand-name{display:block;font:800 18px Manrope,sans-serif;letter-spacing:-.04em}.brand-tag{display:block;margin-top:3px;color:#b8c9bd;font-size:11px}.side-label{margin:8px 12px 10px;color:#91a99b;text-transform:uppercase;letter-spacing:.16em;font-size:10px;font-weight:700}.side-nav{display:grid;gap:5px}.nav-btn{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:11px;padding:12px 13px;text-align:left;background:transparent;color:#c5d3ca;font-size:13px;font-weight:600;transition:background .15s,color .15s}.nav-icon{width:20px;text-align:center;font-size:17px;line-height:1}.nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}.nav-active{background:#dcebe1!important;color:#173f35!important}.side-bottom{margin-top:auto;display:grid;gap:12px}.side-action{width:100%;display:flex;align-items:center;gap:10px;background:transparent;border:1px solid rgba(255,255,255,.13);border-radius:11px;color:#e4eee7;padding:11px 12px;text-align:left;font-size:12px;font-weight:600}.side-action .push{margin-left:auto;color:#b7c9bc;font-size:11px}.account-box{padding:13px;border:1px solid rgba(255,255,255,.16);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.085),rgba(255,255,255,.025));box-shadow:inset 0 1px 0 rgba(255,255,255,.04);min-width:0;overflow:hidden}.account-row{display:flex;align-items:center;gap:8px;min-width:0}.account-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.account-hint{font-size:11px;line-height:1.55;color:#b3c4b8;margin:5px 0 0}.account-link{display:flex;align-items:center;gap:8px;max-width:100%;margin-top:12px;background:rgba(199,229,138,.09);border:1px solid rgba(199,229,138,.22);border-radius:10px;color:var(--lime);font-size:12px;font-weight:700;padding:9px 10px;white-space:normal;text-align:left;overflow-wrap:anywhere}.account-link::before{content:"↪";display:inline-grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:7px;background:rgba(199,229,138,.14);font-size:15px}.account-link:hover{background:rgba(199,229,138,.16)}#currencySelect{appearance:none;-webkit-appearance:none;width:100%;min-width:0;color:#f7f7ef;background:linear-gradient(135deg,#294f40,#1d4034);border:1px solid rgba(199,229,138,.38);border-radius:12px;padding:12px 35px 12px 12px;font-size:11px;font-weight:700;box-shadow:0 5px 14px rgba(0,0,0,.12);background-image:linear-gradient(45deg,transparent 50%,#c7e58a 50%),linear-gradient(135deg,#c7e58a 50%,transparent 50%),linear-gradient(135deg,#294f40,#1d4034);background-position:calc(100% - 16px) 17px,calc(100% - 11px) 17px,0 0;background-size:5px 5px,5px 5px,100% 100%;background-repeat:no-repeat}#currencySelect option{background:#173f35;color:#fffefa}#currencyHint{overflow-wrap:anywhere}#currencySettings{min-width:0}#accountButton{width:100%;justify-content:center;margin-top:13px}#accountButton::before{content:"♙";font-size:16px;flex:0 0 auto}.status-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%}
+.main-area{min-width:0;margin-left:270px}.topbar{height:78px;position:sticky;top:0;z-index:30;background:rgba(245,245,239,.93);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center}.topbar-inner{width:100%;max-width:1440px;margin:auto;padding:0 36px;display:flex;align-items:center;justify-content:space-between;gap:18px}.top-heading{min-width:0}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--green);font-weight:800}.page-title{font:800 23px/1.2 Manrope,sans-serif;letter-spacing:-.045em;margin:5px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-actions{display:flex;align-items:center;gap:9px}.top-date{font-size:12px;color:var(--muted);margin-right:9px}.btn-quiet,.btn-primary,.btn-light{border-radius:11px;padding:11px 15px;font-size:12px;font-weight:700;transition:transform .15s,background .15s}.btn-quiet{border:1px solid var(--line);background:var(--paper);color:var(--ink)}.btn-primary{border:1px solid var(--green);background:var(--green);color:white}.btn-primary:hover{background:#1b493a}.btn-light{border:1px solid rgba(255,255,255,.65);background:#fffefa;color:var(--green-dark)}.btn-primary:active,.btn-light:active,.btn-quiet:active{transform:translateY(1px)}.menu-button{display:none;width:39px;height:39px;border:1px solid var(--line);border-radius:11px;background:var(--paper);color:var(--ink)}
+.page-wrap{max-width:1440px;margin:0 auto;padding:30px 36px 54px}.view{display:none}.view.active{display:block}.dashboard-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px}.intro-title{font:800 28px/1.15 Manrope,sans-serif;letter-spacing:-.055em;margin:0}.intro-copy{margin:8px 0 0;color:var(--muted);font-size:13px}.date-chip{background:#ecefe6;border:1px solid #e1e6dc;color:#56685b;border-radius:999px;padding:8px 12px;font-size:11px;font-weight:700;white-space:nowrap}
+.overview-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.85fr);gap:15px}.balance-panel{position:relative;overflow:hidden;min-height:255px;padding:27px 29px;border-radius:18px;background:var(--green);color:#fffefa;display:flex;flex-direction:column;justify-content:space-between}.balance-panel:after{content:'';position:absolute;width:220px;height:220px;border:1px solid rgba(255,255,255,.15);border-radius:50%;right:-70px;top:-105px;box-shadow:0 0 0 25px rgba(255,255,255,.035),0 0 0 50px rgba(255,255,255,.025)}.balance-top,.balance-bottom{position:relative;z-index:1}.balance-label{display:flex;align-items:center;gap:9px;color:#dcebe1;font-size:12px;font-weight:600}.balance-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.12);font-size:15px}.balance-number{font:800 clamp(32px,4vw,47px)/1.12 Manrope,sans-serif;letter-spacing:-.055em;margin:18px 0 8px;overflow-wrap:anywhere}.balance-note{font-size:12px;color:#d5e4da}.balance-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:26px}.balance-caption{font-size:11px;color:#d5e4da}.month-panel{border:1px solid var(--line);border-radius:18px;background:#e8eee4;padding:25px;display:flex;flex-direction:column;justify-content:space-between;min-height:255px}.month-tag{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#65756a;font-weight:800}.month-head{font:800 20px/1.2 Manrope,sans-serif;letter-spacing:-.04em;margin:12px 0 0}.month-copy{font-size:12px;line-height:1.65;color:#66756b;margin:8px 0 0}.month-rule{height:1px;background:#d3ded1;margin:20px 0 15px}.month-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#52685a;font-size:11px}.month-marker{width:8px;height:8px;border-radius:50%;background:#6c9859;display:inline-block;margin-right:6px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-top:15px}.stat-card{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:19px 20px;min-width:0}.stat-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.stat-label{font-size:12px;color:var(--muted);font-weight:600}.stat-symbol{display:grid;place-items:center;width:29px;height:29px;border-radius:10px;background:var(--soft);color:var(--green);font-size:14px}.stat-value{font:800 clamp(19px,2vw,25px)/1.2 Manrope,sans-serif;letter-spacing:-.04em;display:block;margin-top:16px;overflow-wrap:anywhere}.stat-note{font-size:11px;color:#939b92;margin-top:6px}
+.content-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(270px,.9fr);gap:15px;margin-top:15px}.panel{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:21px}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:19px}.panel-title{font:800 15px Manrope,sans-serif;letter-spacing:-.025em;margin:0}.panel-subtitle{font-size:11px;color:var(--muted);margin:6px 0 0}.text-link{border:0;background:none;color:var(--green);font-size:11px;font-weight:800;padding:3px 0;white-space:nowrap}.list-stack{display:grid;gap:2px}.transaction-row{display:flex;align-items:center;gap:12px;min-width:0;padding:12px 0;border-bottom:1px solid #edf0e8}.transaction-row:last-child{border-bottom:0}.transaction-icon{width:39px;height:39px;flex:0 0 39px;border-radius:13px;background:#edf2e8;color:#315d49;display:grid;place-items:center;font-size:16px}.transaction-main{min-width:0;flex:1}.transaction-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.transaction-meta{font-size:10px;color:var(--muted);margin-top:5px}.transaction-amount{font-size:12px;font-weight:800;white-space:nowrap}.transaction-actions .row-action{display:inline-block}.empty-state{padding:28px 10px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7}.category-row{display:grid;gap:9px;margin:16px 0}.category-glyph{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:4px;border-radius:7px;background:#edf2e8;color:#315d49;font-size:13px}.transaction-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}.row-action{border:1px solid var(--line);border-radius:8px;background:#f6f7f1;padding:7px 9px;font-size:10px;font-weight:700;color:#526257}.row-delete{color:#ad5145;background:#fbefec;border-color:#f2ded8}.row-edit:hover{background:#e8eee4}.row-delete:hover{background:#f7e3de}.dark .row-action{background:#24372b;border-color:#35483c;color:#d8e6da}.dark .row-delete{background:#402b27;color:#ffc3b5;border-color:#654038}.dark .category-glyph{background:#24382b;color:#c7e58a}.category-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px}.category-name{font-weight:700}.category-amount{font-weight:700;color:#56665b}.bar-track{height:6px;border-radius:999px;background:#edf0e8;overflow:hidden}.bar-fill{height:100%;border-radius:999px;background:#5b8b69}.category-foot{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:5px}
+.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:23px}.section-title{font:800 28px/1.15 Manrope,sans-serif;letter-spacing:-.055em;margin:7px 0 0}.section-copy{font-size:13px;color:var(--muted);margin:8px 0 0}.filter-panel{padding:18px;margin-bottom:14px}.filters-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(150px,.8fr) minmax(150px,.8fr);gap:10px}.field{width:100%;min-width:0;border:1px solid #e0e5da;background:#fafaf5;color:var(--ink);border-radius:10px;padding:12px 13px;outline:none;transition:border-color .18s,box-shadow .18s;font-size:12px}.field:focus{border-color:#5b8b69;box-shadow:0 0 0 3px rgba(91,139,105,.12)}.dark .field{background:#17251f;border-color:#35483c;color:#f6f7f1}.filter-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}.result-count{font-size:11px;color:var(--muted);font-weight:700}.expense-list-panel{padding:8px 20px}.analytics-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-bottom:15px}.analytics-stat{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:20px;min-width:0}.analytics-stat-label{font-size:11px;color:var(--muted);font-weight:600}.analytics-stat-value{display:block;font:800 20px Manrope,sans-serif;letter-spacing:-.04em;margin-top:14px;overflow-wrap:anywhere}.analytics-stat-note{display:block;font-size:10px;color:#929a91;margin-top:7px;overflow-wrap:anywhere}.chart-panel{padding:23px}.chart-panel .category-row{margin:21px 0}
+.mobile-bottom{display:none}.modal{display:none}.modal.open{display:flex}.modal-backdrop{position:fixed;inset:0;z-index:70;align-items:flex-end;justify-content:center;background:rgba(15,29,22,.58);backdrop-filter:blur(5px);padding:0}.modal-card{width:100%;max-height:92dvh;overflow:auto;background:var(--paper);border-radius:24px 24px 0 0;padding:24px;box-shadow:0 24px 80px rgba(0,0,0,.2)}.modal-grip{width:38px;height:4px;background:#dce1d7;border-radius:999px;margin:-8px auto 19px}.modal-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}.modal-title{font:800 22px Manrope,sans-serif;letter-spacing:-.04em;margin:5px 0 0}.modal-close{width:36px;height:36px;border:1px solid var(--line);border-radius:11px;background:var(--soft);font-size:21px;color:var(--ink)}.form-label{display:block;font-size:11px;font-weight:700;color:#58645b;margin-bottom:7px}.form-group{display:block;margin-bottom:15px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.form-submit{width:100%;border:0;border-radius:11px;padding:14px;background:var(--green);color:white;font-size:12px;font-weight:800;margin-top:5px}.auth-card{width:100%;max-width:430px;margin:auto;background:var(--paper);border-radius:23px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.2)}.auth-mark{width:46px;height:46px;border-radius:15px;background:var(--lime);color:var(--green-dark);display:grid;place-items:center;font:800 22px Manrope,sans-serif;margin:0 auto 15px}.auth-toggle{width:100%;background:none;border:0;color:var(--green);font-size:12px;font-weight:800;margin-top:17px}.auth-close{width:100%;background:none;border:0;color:var(--muted);font-size:12px;margin-top:12px}.toast{opacity:0;transform:translate(-50%,15px);pointer-events:none;transition:all .22s ease}.toast.show{opacity:1;transform:translate(-50%,0)}
+.dark body,.dark #appShell{background:#101a15;color:#edf2e9}.dark .topbar{background:rgba(16,26,21,.94);border-color:#2a3a30}.dark .page-title,.dark .intro-title,.dark .section-title{color:#f1f4ed}.dark .topbar,.dark .panel,.dark .stat-card,.dark .analytics-stat,.dark .filter-panel,.dark .expense-list-panel{color:#edf2e9}.dark .panel,.dark .stat-card,.dark .analytics-stat,.dark .filter-panel,.dark .expense-list-panel,.dark .btn-quiet{background:#18251e;border-color:#2b3b30}.dark .topbar{background:rgba(16,26,21,.94)}.dark .page-wrap{color:#edf2e9}.dark .stat-value,.dark .panel-title,.dark .transaction-name,.dark .analytics-stat-value{color:#f1f4ed}.dark .transaction-row{border-color:#29382e}.dark .transaction-icon,.dark .stat-symbol{background:#24382b;color:#c7e58a}.dark .bar-track{background:#2b3a30}.dark .category-amount{color:#d1dfd3}.dark .date-chip{background:#26372c;border-color:#344638;color:#d1dfd3}.dark .month-panel{background:#22362a;border-color:#344638}.dark .month-tag,.dark .month-copy,.dark .month-foot{color:#d1dfd3}.dark .month-rule{background:#3b5040}.dark .field{background:#122019;color:#f1f4ed;border-color:#35483c}.dark .form-label{color:#c7d3c9}.dark .modal-card,.dark .auth-card{background:#18251e;color:#f1f4ed}.dark .modal-close{background:#26372c;color:#f1f4ed;border-color:#35483c}.dark .modal-grip{background:#425247}.dark .mobile-bottom{background:rgba(16,26,21,.97);border-color:#2a3a30}
+@media(min-width:1024px){.sidebar.-translate-x-full{transform:translateX(0)}.modal-backdrop{align-items:center;padding:18px}.modal-card{max-width:510px;border-radius:22px}.modal-grip{display:none}}
+@media(max-width:1023px){.sidebar{box-shadow:18px 0 45px rgba(0,0,0,.14)}.main-area{margin-left:0}.menu-button{display:grid;place-items:center}.topbar-inner{padding:0 22px}.page-wrap{padding:25px 22px 95px}.mobile-bottom{display:grid;position:fixed;inset:auto 0 0;z-index:30;grid-template-columns:repeat(4,1fr);padding:8px 8px max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--line);background:rgba(255,254,250,.96);backdrop-filter:blur(14px)}.mobile-nav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:transparent;padding:5px 2px;color:#8a948a;font-size:10px;font-weight:700}.mobile-nav .mobile-icon{font-size:18px;line-height:1.1}.mobile-nav.text-emerald-600{color:var(--green)!important}.mobile-add .mobile-icon{width:27px;height:24px;display:grid;place-items:center;border-radius:8px;background:var(--green);color:#fff;font-size:19px}.content-grid{grid-template-columns:minmax(0,1.2fr) minmax(250px,.8fr)}}
+@media(max-height:760px) and (min-width:1024px){.sidebar{padding-top:15px;padding-bottom:12px}.brand{padding-bottom:16px}.side-bottom{gap:8px}.account-box{padding:10px}.account-hint{font-size:10px}.account-link{margin-top:8px;padding:7px 9px}}
+@media(max-width:680px){.topbar{height:68px}.topbar-inner{padding:0 14px;gap:10px}.page-title{font-size:18px}.eyebrow{font-size:9px}.top-date,.account-top-button{display:none}.top-actions{gap:6px}.top-actions .btn-primary{padding:10px 11px;font-size:11px}.page-wrap{padding:21px 14px 92px}.dashboard-intro{align-items:flex-start;margin-bottom:17px}.intro-title{font-size:24px}.intro-copy{font-size:12px;line-height:1.55}.date-chip{font-size:10px;padding:7px 9px}.overview-grid{grid-template-columns:1fr;gap:11px}.balance-panel{min-height:235px;padding:23px}.balance-number{font-size:37px}.month-panel{min-height:160px;padding:20px}.month-head{font-size:18px}.month-rule{margin:14px 0 12px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:11px}.stat-card{padding:15px}.stat-card:last-child{grid-column:1/-1}.stat-value{font-size:21px;margin-top:12px}.content-grid{grid-template-columns:1fr;gap:11px;margin-top:11px}.panel{padding:17px}.panel-head{margin-bottom:13px}.section-heading{align-items:flex-start;flex-direction:column;margin-bottom:18px}.section-title{font-size:25px}.section-copy{font-size:12px}.section-heading .btn-primary{width:100%}.filters-grid{grid-template-columns:1fr}.filter-panel{padding:13px}.expense-list-panel{padding:7px 14px}.analytics-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.analytics-stat{padding:15px}.analytics-stat:last-child{grid-column:1/-1}.analytics-stat-value{font-size:19px}.chart-panel{padding:17px}.form-grid{grid-template-columns:1fr;gap:0}.modal-card{padding:22px 19px}.auth-card{border-radius:23px 23px 0 0;margin-top:auto;padding:25px 21px}.modal-backdrop:has(.auth-card){padding:0}.transaction-row{gap:9px}.transaction-icon{width:35px;height:35px;flex-basis:35px;border-radius:11px}.transaction-amount{font-size:11px}.transaction-name{font-size:11px}.transaction-meta{font-size:9px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
-<body class="auth-gate min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-<section id="privacyWelcome" aria-labelledby="welcomeTitle">
-  <div class="w-full max-w-md text-center">
-    <div class="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl font-black text-white shadow-xl">S</div>
-    <p class="text-xs font-extrabold uppercase tracking-[.28em] text-emerald-300">YOUR MONEY, IN FOCUS</p>
-    <h1 id="welcomeTitle" class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">Welcome to SpendWise</h1>
-    <p class="mx-auto mt-4 max-w-sm text-sm leading-6 text-slate-300">Sign in to access your private expense dashboard. Your transactions stay hidden until you sign in to an approved account.</p>
-    <button id="welcomeSignIn" type="button" class="mt-8 w-full rounded-xl bg-emerald-500 px-5 py-4 font-extrabold text-white transition hover:bg-emerald-400">Sign in to continue</button>
-    <button id="welcomeSignUp" type="button" class="mt-3 w-full rounded-xl border border-white/15 px-5 py-3.5 font-bold text-slate-200 transition hover:bg-white/5">Create an account</button>
-    <p id="welcomeMessage" class="mt-5 min-h-5 text-sm text-amber-300" aria-live="polite"></p>
-  </div>
-</section>
-
-<div id="appShell" class="min-h-screen">
-  <!-- Mobile drawer overlay -->
-  <div id="overlay" onclick="closeMenu()" class="fixed inset-0 z-40 hidden bg-slate-950/60 backdrop-blur-sm lg:hidden"></div>
-
-  <!-- Sidebar -->
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 flex w-[275px] -translate-x-full flex-col bg-slate-950 px-5 py-6 text-white transition-transform duration-300 lg:translate-x-0">
-    <button type="button" onclick="showView('dashboard')" class="mb-10 flex items-center gap-3 text-left">
-      <span class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 text-2xl font-black shadow-lg shadow-emerald-900/30">S</span>
-      <span><b class="block text-xl tracking-tight">SpendWise</b><small class="text-slate-400">Your money, in focus.</small></span>
-    </button>
-    <p class="mb-3 px-3 text-[10px] font-extrabold uppercase tracking-[.22em] text-slate-500">Workspace</p>
-    <nav class="space-y-2">
-      <button type="button" onclick="showView('dashboard')" data-nav="dashboard" class="nav-btn nav-active flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">⌂</span> Overview</button>
-      <button type="button" onclick="showView('expenses')" data-nav="expenses" class="nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">↗</span> Transactions</button>
-      <button type="button" onclick="showView('analytics')" data-nav="analytics" class="nav-btn flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span class="text-lg">◒</span> Analytics</button>
-    </nav>
-    <div class="mt-auto space-y-3">
-      <button type="button" onclick="toggleTheme()" class="flex w-full items-center gap-3 rounded-2xl border border-white/10 px-4 py-3.5 text-left font-semibold text-slate-300 transition hover:bg-white/10"><span>◐</span> Appearance <span id="themeLabel" class="ml-auto text-xs text-slate-500">Light</span></button>
-      <div class="rounded-2xl border border-white/10 bg-white/[.04] p-4">
-        <div class="flex items-center gap-2"><span id="statusDot" class="h-2.5 w-2.5 rounded-full bg-amber-400"></span><div id="accountStatus" class="min-w-0 truncate text-sm font-bold">Local mode</div></div>
-        <p id="accountHint" class="mt-1 text-xs leading-5 text-slate-400">Saved in this browser.</p>
-        <button id="accountButton" type="button" class="mt-3 text-sm font-bold text-emerald-300 hover:text-emerald-200">Sign in</button>
-      </div>
-      <p class="px-2 text-[11px] text-slate-600">Spend smarter. Live better.</p>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <main class="min-w-0 lg:pl-[275px]">
-    <header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 px-4 py-3.5 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90 sm:px-8 sm:py-5">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
-        <div class="flex min-w-0 items-center gap-3">
-          <button type="button" onclick="openMenu()" aria-label="Open navigation" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-lg lg:hidden dark:border-slate-800 dark:bg-slate-900">☰</button>
-          <div class="min-w-0">
-            <p id="pageEyebrow" class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">YOUR OVERVIEW</p>
-            <h1 id="pageTitle" class="truncate text-lg font-black tracking-tight sm:text-2xl">Good day 👋</h1>
-          </div>
-        </div>
-        <div class="flex shrink-0 items-center gap-2">
-          <button type="button" onclick="openAuth()" class="hidden rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold transition hover:bg-slate-50 sm:inline-flex dark:border-slate-800 dark:hover:bg-slate-900">Account</button>
-          <button type="button" onclick="openExpense()" class="desktop-add rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">＋ Add expense</button>
-        </div>
-      </div>
-    </header>
-
-    <div class="page-wrap mx-auto max-w-7xl p-4 sm:p-8">
-      <!-- Dashboard -->
-      <section id="dashboardView" class="view active">
-        <div class="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 p-6 text-white shadow-xl shadow-emerald-900/15 sm:rounded-[30px] sm:p-9">
-          <div class="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full border-[35px] border-white/10"></div>
-          <div class="pointer-events-none absolute -bottom-24 right-24 h-52 w-52 rounded-full bg-emerald-400/20 blur-2xl"></div>
-          <div class="relative">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-emerald-100"><span class="grid h-7 w-7 place-items-center rounded-lg bg-white/15">₦</span>Total spending</div>
-            <div id="totalSpent" class="mt-4 break-words text-4xl font-black tracking-tight sm:text-5xl">₦0</div>
-            <p class="mt-2 text-sm text-emerald-100">All recorded expenses</p>
-            <button type="button" onclick="openExpense()" class="mt-6 rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-emerald-700 shadow-lg transition hover:-translate-y-0.5">＋ Record an expense</button>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-2 gap-3 sm:mt-5 sm:grid-cols-3 sm:gap-4">
-          <div class="card p-4 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Spent today</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">☀</span></div><b id="todaySpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Today</p></div>
-          <div class="card p-4 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">This month</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">▦</span></div><b id="monthSpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Current month</p></div>
-          <div class="card col-span-2 p-4 sm:col-span-1 sm:p-5"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Average expense</span><span class="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">↗</span></div><b id="averageSpent" class="mt-3 block break-words text-xl font-black sm:text-2xl">₦0</b><p class="mt-1 text-[11px] text-slate-400">Per transaction</p></div>
-        </div>
-
-        <div class="mt-5 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-          <section class="card min-w-0 p-4 sm:p-6">
-            <div class="mb-5 flex items-center justify-between gap-3"><div><h2 class="text-base font-black sm:text-lg">Recent transactions</h2><p class="mt-1 text-xs text-slate-500 sm:text-sm">Your latest money moves.</p></div><button type="button" onclick="showView('expenses')" class="shrink-0 text-sm font-extrabold text-emerald-600">View all →</button></div>
-            <div id="recentList" class="space-y-2"></div>
-          </section>
-          <section class="card min-w-0 p-4 sm:p-6">
-            <div class="mb-5"><h2 class="text-base font-black sm:text-lg">Top categories</h2><p class="mt-1 text-xs text-slate-500 sm:text-sm">Where your money goes.</p></div>
-            <div id="topCategories" class="space-y-5"></div>
-          </section>
-        </div>
-      </section>
-
-      <!-- Transactions -->
-      <section id="expensesView" class="view">
-        <div class="mb-5 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
-          <div><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">YOUR ACTIVITY</p><h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Transactions</h2><p class="mt-1 text-sm text-slate-500">Search, filter, edit and manage spending.</p></div>
-          <button type="button" onclick="openExpense()" class="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 sm:w-auto">＋ Add expense</button>
-        </div>
-        <div class="card p-4 sm:p-6">
-          <div class="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
-            <label class="relative block"><span class="sr-only">Search expenses</span><span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span><input id="searchInput" oninput="render()" class="field pl-10" placeholder="Search item, note or date…"></label>
-            <select id="categoryFilter" onchange="render()" class="field"><option value="">All categories</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select>
-            <select id="sortFilter" onchange="render()" class="field"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest amount</option><option value="lowest">Lowest amount</option></select>
-          </div>
-          <div class="my-4 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800"><p id="resultCount" class="text-xs font-bold text-slate-500">0 transactions</p><button type="button" onclick="clearFilters()" class="text-xs font-bold text-emerald-600">Clear filters</button></div>
-          <div id="allList" class="space-y-2"></div>
-        </div>
-      </section>
-
-      <!-- Analytics -->
-      <section id="analyticsView" class="view">
-        <div class="mb-5 sm:mb-7"><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">SPENDING INSIGHTS</p><h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Analytics</h2><p class="mt-1 text-sm text-slate-500">Understand your habits and spending patterns.</p></div>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-          <div class="card p-4 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Top category</span><b id="topCategory" class="mt-3 block break-words text-lg font-black">—</b><small id="topCategoryAmount" class="mt-1 block text-xs text-slate-400">No data yet</small></div>
-          <div class="card p-4 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Largest expense</span><b id="largestExpense" class="mt-3 block break-words text-lg font-black">₦0</b><small id="largestExpenseName" class="mt-1 block break-words text-xs text-slate-400">No data yet</small></div>
-          <div class="card col-span-2 p-4 sm:col-span-1 sm:p-5"><span class="text-xs font-semibold text-slate-500 sm:text-sm">Transactions recorded</span><b id="transactionTotal" class="mt-3 block text-lg font-black">0</b><small class="mt-1 block text-xs text-slate-400">All-time count</small></div>
-        </div>
-        <div class="card mt-4 p-4 sm:mt-5 sm:p-6"><h3 class="mb-5 text-base font-black sm:text-lg">Spending by category</h3><div id="chart" class="space-y-5"></div></div>
-      </section>
-    </div>
-  </main>
-</div>
-
-<!-- Mobile quick navigation -->
-<nav class="mobile-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-2 pt-2 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
-  <button type="button" onclick="showView('dashboard')" data-mobile-nav="dashboard" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-emerald-600"><span class="text-xl leading-5">⌂</span><span class="text-[10px] font-bold">Home</span></button>
-  <button type="button" onclick="showView('expenses')" data-mobile-nav="expenses" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="text-xl leading-5">↗</span><span class="text-[10px] font-bold">Activity</span></button>
-  <button type="button" onclick="showView('analytics')" data-mobile-nav="analytics" class="mobile-nav flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="text-xl leading-5">◒</span><span class="text-[10px] font-bold">Insights</span></button>
-  <button type="button" onclick="openExpense()" class="flex flex-col items-center gap-1 rounded-xl py-2 text-slate-400"><span class="grid h-6 w-6 place-items-center rounded-lg bg-emerald-600 text-lg leading-none text-white">＋</span><span class="text-[10px] font-bold">Add</span></button>
-</nav>
-
-<!-- Expense modal -->
-<div id="expenseModal" class="modal fixed inset-0 z-[70] items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-  <div class="max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-7 dark:bg-slate-900">
-    <div class="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden"></div>
-    <div class="mb-5 flex items-center justify-between"><div><p class="text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-600">SPENDWISE</p><h2 id="modalTitle" class="mt-1 text-xl font-black sm:text-2xl">Add expense</h2></div><button type="button" onclick="closeExpense()" aria-label="Close" class="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl dark:bg-slate-800">×</button></div>
-    <form id="expenseForm" onsubmit="saveExpense(event)" class="space-y-4">
-      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">What did you buy?</span><input id="expenseName" required maxlength="120" class="field" placeholder="e.g. Lunch, mobile data, T-shirt"></label>
-      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Amount (₦)</span><input id="expenseAmount" required type="number" min="1" step="1" inputmode="numeric" class="field" placeholder="e.g. 5000"></label>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Date purchased</span><input id="expenseDate" required type="date" class="field"></label>
-        <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Category</span><select id="expenseCategory" required class="field"><option value="">Choose category</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select></label>
-      </div>
-      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Note <span class="font-normal text-slate-400">(optional)</span></span><textarea id="expenseNote" maxlength="500" rows="3" class="field resize-y" placeholder="Add any helpful details…"></textarea></label>
-      <button id="saveExpenseButton" type="submit" class="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3.5 font-extrabold text-white shadow-lg shadow-emerald-600/20 transition hover:brightness-110">Save expense</button>
-    </form>
-  </div>
-</div>
-
-<!-- Authentication modal -->
-<div id="authModal" class="modal fixed inset-0 z-[80] items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-  <div class="w-full rounded-t-[28px] bg-white p-6 shadow-2xl sm:max-w-md sm:rounded-3xl sm:p-7 dark:bg-slate-900">
-    <div class="mx-auto mb-5 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden"></div>
-    <div class="mb-6 text-center"><div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 text-2xl font-black text-white shadow-lg shadow-emerald-600/20">S</div><h2 id="authTitle" class="text-2xl font-black">Welcome to SpendWise</h2><p id="authSubtitle" class="mt-2 text-sm leading-6 text-slate-500">Sign in to sync your expenses across devices.</p></div>
-    <form id="authForm" class="space-y-4">
-      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Email address</span><input id="authEmail" required type="email" autocomplete="email" class="field" placeholder="you@example.com"></label>
-      <label class="block"><span class="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Password</span><input id="authPassword" required type="password" minlength="6" autocomplete="current-password" class="field" placeholder="At least 6 characters"></label>
-      <div id="turnstile-container" class="flex min-h-[65px] justify-center" aria-label="Security verification"></div>
-      <button id="authSubmit" type="submit" class="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-3.5 font-extrabold text-white">Sign in</button>
-    </form>
-    <button id="authToggle" type="button" class="mt-4 w-full text-sm font-extrabold text-emerald-600">Create an account instead</button>
-    <button id="authClose" type="button" class="mt-3 w-full py-2 text-sm font-semibold text-slate-500">Close</button>
-  </div>
-</div>
-
-<div id="toast" role="status" aria-live="polite" class="toast fixed bottom-24 left-1/2 z-[100] max-w-[calc(100vw-28px)] rounded-xl bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-2xl sm:bottom-5"></div>
+<body class="auth-gate">
+<section id="privacyWelcome" aria-labelledby="welcomeTitle"><div style="width:100%;max-width:400px;text-align:center"><div class="welcome-mark">S</div><p class="welcome-kicker">Your money, in focus</p><h1 id="welcomeTitle" class="welcome-title">A clearer view of your money.</h1><p class="welcome-copy">A calmer way to track what you spend, understand your habits, and make your money go further.</p><button id="welcomeSignIn" type="button" class="welcome-primary">Sign in to SpendWise</button><button id="welcomeSignUp" type="button" class="welcome-secondary">Create your account</button><p id="welcomeMessage" style="margin-top:18px;min-height:20px;color:#c7e58a;font-size:12px" aria-live="polite"></p></div></section>
+<div id="appShell">
+<div id="overlay" onclick="closeMenu()" class="fixed inset-0 z-40 hidden" style="background:rgba(13,28,20,.55);backdrop-filter:blur(3px)"></div>
+<aside id="sidebar" class="sidebar -translate-x-full">
+<button type="button" onclick="showView('dashboard')" class="brand"><span class="brand-mark">S</span><span><b class="brand-name">SpendWise</b><small class="brand-tag">Your money, in focus.</small></span></button>
+<p class="side-label">Your workspace</p><nav class="side-nav"><button type="button" onclick="showView('dashboard')" data-nav="dashboard" class="nav-btn nav-active"><span class="nav-icon">⌂</span>Overview</button><button type="button" onclick="showView('expenses')" data-nav="expenses" class="nav-btn"><span class="nav-icon">↗</span>Transactions</button><button type="button" onclick="showView('analytics')" data-nav="analytics" class="nav-btn"><span class="nav-icon">◷</span>Spending insights</button></nav>
+<div class="side-bottom"><button type="button" onclick="toggleTheme()" class="side-action"><span>◐</span> Appearance <span id="themeLabel" class="push">Light</span></button><div class="account-box"><div class="account-row"><span id="statusDot" class="status-dot" style="background:#d7b86a"></span><div id="accountStatus" class="account-name">Local mode</div></div><p id="accountHint" class="account-hint">Saved in this browser.</p><div id="currencySettings" class="hidden" style="margin-top:14px"><label for="currencySelect" style="display:block;font-size:11px;font-weight:700;margin-bottom:7px;color:#d9e4dc">Preferred currency</label><select id="currencySelect" class="field"><option value="NGN">NGN — Nigerian Naira (₦)</option><option value="GBP">GBP — British Pound (£)</option><option value="USD">USD — US Dollar ($)</option><option value="EUR">EUR — Euro (€)</option><option value="CAD">CAD — Canadian Dollar (CA$)</option><option value="GHS">GHS — Ghanaian Cedi (GH₵)</option><option value="ZAR">ZAR — South African Rand (R)</option></select><p id="currencyHint" class="account-hint" style="margin-top:7px">Choose your currency before recording expenses.</p><button type="button" onclick="openConverter()" class="account-link converter-link" style="display:flex;width:100%;margin-top:10px"><span aria-hidden="true">⇄</span><span>Open currency converter</span></button></div><button id="accountButton" type="button" class="account-link">Sign in</button></div><p style="font-size:10px;color:#91a99b;padding:0 4px">Spend smarter. Live better.</p></div>
+</aside>
+<div class="main-area"><header class="topbar"><div class="topbar-inner"><div style="display:flex;align-items:center;gap:12px;min-width:0"><button type="button" onclick="openMenu()" aria-label="Open navigation" class="menu-button">☰</button><div class="top-heading"><p id="pageEyebrow" class="eyebrow">YOUR OVERVIEW</p><h1 id="pageTitle" class="page-title">Your money at a glance</h1></div></div><div class="top-actions"><span id="headerDate" class="top-date"></span><button type="button" onclick="openAuth()" class="btn-quiet account-top-button">Account</button><button type="button" onclick="openExpense()" class="btn-primary">＋ Add expense</button></div></div></header>
+<main class="page-wrap">
+<section id="dashboardView" class="view active"><div class="dashboard-intro"><div><h2 class="intro-title">Your money, at a glance.</h2><p class="intro-copy">A simple picture of where things stand.</p></div><span class="date-chip" id="overviewDate">YOUR OVERVIEW</span></div>
+<div class="overview-grid"><section class="balance-panel"><div class="balance-top"><div class="balance-label"><span id="totalCurrencyIcon" class="balance-icon">₦</span>Total spending recorded</div><div id="totalSpent" class="balance-number">₦0.00</div><p class="balance-note">Across all your recorded expenses</p></div><div class="balance-bottom"><span class="balance-caption">Keep track. Stay in control.</span><button type="button" onclick="openExpense()" class="btn-light">＋ Record expense</button></div></section><section class="month-panel"><div><p class="month-tag">A little perspective</p><h3 class="month-head">Small choices add up.</h3><p class="month-copy">Use your recent activity and category breakdown to see where your money is going.</p></div><div><div class="month-rule"></div><div class="month-foot"><span><i class="month-marker"></i>Built around your spending</span><span>SpendWise</span></div></div></section></div>
+<div class="stats-grid"><article class="stat-card"><div class="stat-top"><span class="stat-label">Spent today</span><span class="stat-symbol">◷</span></div><b id="todaySpent" class="stat-value">₦0.00</b><p class="stat-note">Recorded for today</p></article><article class="stat-card"><div class="stat-top"><span class="stat-label">This month</span><span class="stat-symbol">▦</span></div><b id="monthSpent" class="stat-value">₦0.00</b><p class="stat-note">Current calendar month</p></article><article class="stat-card"><div class="stat-top"><span class="stat-label">Average expense</span><span class="stat-symbol">↗</span></div><b id="averageSpent" class="stat-value">₦0.00</b><p class="stat-note">Per recorded transaction</p></article></div>
+<div class="content-grid"><section class="panel"><div class="panel-head"><div><h2 class="panel-title">Recent transactions</h2><p class="panel-subtitle">The latest activity in your account.</p></div><button type="button" onclick="showView('expenses')" class="text-link">See all →</button></div><div id="recentList" class="list-stack"></div></section><section class="panel"><div class="panel-head"><div><h2 class="panel-title">Where it goes</h2><p class="panel-subtitle">Your biggest spending categories.</p></div></div><div id="topCategories"></div></section></div></section>
+<section id="expensesView" class="view"><div class="section-heading"><div><p class="eyebrow">YOUR ACTIVITY</p><h2 class="section-title">Transactions</h2><p class="section-copy">Find an expense, review the details, or make a change.</p></div><button type="button" onclick="openExpense()" class="btn-primary">＋ Add expense</button></div><section class="panel filter-panel"><div class="filters-grid"><label style="position:relative"><span class="sr-only">Search expenses</span><span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#879187">⌕</span><input id="searchInput" oninput="render()" class="field" style="padding-left:35px" placeholder="Search transactions..."></label><select id="categoryFilter" onchange="render()" class="field"><option value="">All categories</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select><select id="sortFilter" onchange="render()" class="field"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="highest">Highest amount</option><option value="lowest">Lowest amount</option></select></div><div class="filter-foot"><p id="resultCount" class="result-count">0 transactions</p><button type="button" onclick="clearFilters()" class="text-link">Reset filters</button></div></section><section class="panel expense-list-panel"><div id="allList" class="list-stack"></div></section></section>
+<section id="analyticsView" class="view"><div class="section-heading"><div><p class="eyebrow">SPENDING INSIGHTS</p><h2 class="section-title">Analytics</h2><p class="section-copy">Understand your habits through the numbers.</p></div></div><div class="analytics-summary"><article class="analytics-stat"><span class="analytics-stat-label">Top category</span><b id="topCategory" class="analytics-stat-value">—</b><small id="topCategoryAmount" class="analytics-stat-note">No data yet</small></article><article class="analytics-stat"><span class="analytics-stat-label">Largest expense</span><b id="largestExpense" class="analytics-stat-value">₦0.00</b><small id="largestExpenseName" class="analytics-stat-note">No data yet</small></article><article class="analytics-stat"><span class="analytics-stat-label">Transactions recorded</span><b id="transactionTotal" class="analytics-stat-value">0</b><small class="analytics-stat-note">All-time count</small></article></div><section class="panel chart-panel"><div class="panel-head"><div><h3 class="panel-title">Spending by category</h3><p class="panel-subtitle">Compare the share of your recorded spending.</p></div></div><div id="chart"></div></section></section>
+</main></div></div>
+<nav class="mobile-bottom"><button type="button" onclick="showView('dashboard')" data-mobile-nav="dashboard" class="mobile-nav text-emerald-600"><span class="mobile-icon">⌂</span><span>Home</span></button><button type="button" onclick="showView('expenses')" data-mobile-nav="expenses" class="mobile-nav text-slate-400"><span class="mobile-icon">↗</span><span>Activity</span></button><button type="button" onclick="showView('analytics')" data-mobile-nav="analytics" class="mobile-nav text-slate-400"><span class="mobile-icon">◷</span><span>Insights</span></button><button type="button" onclick="openExpense()" class="mobile-nav mobile-add"><span class="mobile-icon">＋</span><span>Add</span></button></nav>
+<div id="expenseModal" class="modal modal-backdrop"><div class="modal-card"><div class="modal-grip"></div><div class="modal-heading"><div><p class="eyebrow">SPENDWISE</p><h2 id="modalTitle" class="modal-title">Add expense</h2></div><button type="button" onclick="closeExpense()" aria-label="Close" class="modal-close">×</button></div><form id="expenseForm" onsubmit="saveExpense(event)"><label class="form-group"><span class="form-label">What did you buy?</span><input id="expenseName" required maxlength="120" class="field" placeholder="e.g. Lunch, mobile data, T-shirt"></label><label class="form-group"><span id="expenseAmountLabel" class="form-label">Amount (NGN)</span><input id="expenseAmount" required type="number" min="0.01" step="0.01" inputmode="decimal" class="field" placeholder="Enter amount"></label><div class="form-grid"><label class="form-group"><span class="form-label">Date purchased</span><input id="expenseDate" required type="date" class="field"></label><label class="form-group"><span class="form-label">Category</span><select id="expenseCategory" required class="field"><option value="">Choose category</option><option>Food</option><option>Data</option><option>Clothes</option><option>Transport</option><option>Entertainment</option><option>Bills</option><option>Shopping</option><option>Other</option></select></label></div><label class="form-group"><span class="form-label">Note <span style="font-weight:400;color:#929a91">(optional)</span></span><textarea id="expenseNote" maxlength="500" rows="3" class="field" style="resize:vertical" placeholder="Add a helpful detail..."></textarea></label><button id="saveExpenseButton" type="submit" class="form-submit">Save expense</button></form></div></div>
+<div id="authModal" class="modal modal-backdrop"><div class="auth-card"><div class="modal-grip"></div><div style="text-align:center;margin-bottom:23px"><div class="auth-mark">S</div><h2 id="authTitle" style="font:800 24px Manrope,sans-serif;letter-spacing:-.04em;margin:0">Welcome to SpendWise</h2><p id="authSubtitle" style="font-size:12px;line-height:1.65;color:var(--muted);margin:8px 0 0">Sign in to sync your expenses across devices.</p></div><form id="authForm"><label class="form-group"><span class="form-label">Email address</span><input id="authEmail" required type="email" autocomplete="email" class="field" placeholder="you@example.com"></label><label class="form-group"><span class="form-label">Password</span><input id="authPassword" required type="password" minlength="6" autocomplete="current-password" class="field" placeholder="At least 6 characters"></label><div id="turnstile-container" style="display:flex;justify-content:center;min-height:65px;margin:12px 0" aria-label="Security verification"></div><button id="authSubmit" type="submit" class="form-submit">Sign in</button></form><button id="authToggle" type="button" class="auth-toggle">Create an account instead</button><button id="authClose" type="button" class="auth-close">Close</button></div></div>
+<div id="converterModal" class="modal modal-backdrop"><div class="modal-card"><div class="modal-grip"></div><div class="modal-heading"><div><p class="eyebrow">CURRENCY TOOLS</p><h2 class="modal-title">Currency converter</h2></div><button type="button" onclick="closeConverter()" aria-label="Close converter" class="modal-close">×</button></div><p style="font-size:12px;line-height:1.6;color:var(--muted);margin:-10px 0 18px">Convert an amount using the latest available reference exchange rates. Rates may differ from your bank or payment provider.</p><label class="form-group"><span class="form-label">Amount</span><input id="converterAmount" type="number" min="0" step="any" value="1" class="field" inputmode="decimal"></label><div class="form-grid"><label class="form-group"><span class="form-label">From</span><select id="converterFrom" class="field"><option value="NGN">NGN — Nigerian Naira</option><option value="GBP">GBP — British Pound</option><option value="USD">USD — US Dollar</option><option value="EUR">EUR — Euro</option><option value="CAD">CAD — Canadian Dollar</option><option value="GHS">GHS — Ghanaian Cedi</option><option value="ZAR">ZAR — South African Rand</option></select></label><label class="form-group"><span class="form-label">To</span><select id="converterTo" class="field"><option value="USD">USD — US Dollar</option><option value="NGN">NGN — Nigerian Naira</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option><option value="CAD">CAD — Canadian Dollar</option><option value="GHS">GHS — Ghanaian Cedi</option><option value="ZAR">ZAR — South African Rand</option></select></label></div><button type="button" onclick="swapConverterCurrencies()" class="btn-quiet" style="width:100%;margin:0 0 15px">⇅ Swap currencies</button><div style="border-radius:14px;background:var(--soft);padding:17px;margin-bottom:14px"><p style="font-size:11px;color:var(--muted);font-weight:700">Converted amount</p><b id="converterResult" style="display:block;font:800 27px Manrope,sans-serif;overflow-wrap:anywhere;margin-top:7px">—</b><p id="converterRateInfo" style="font-size:10px;line-height:1.6;color:var(--muted);margin-top:7px" aria-live="polite">Loading exchange rates when needed.</p></div><button type="button" onclick="refreshExchangeRates()" class="btn-quiet" style="width:100%">↻ Refresh exchange rates</button></div></div>
+<div id="toast" role="status" aria-live="polite" class="toast" style="position:fixed;bottom:26px;left:50%;z-index:100;max-width:calc(100vw - 28px);border-radius:11px;background:#173f35;color:white;padding:13px 18px;text-align:center;font-size:12px;font-weight:700;box-shadow:0 12px 35px rgba(0,0,0,.2)"></div>
 
 <script>
 (() => {
   'use strict';
+
   const KEY = 'spendwise_expenses_v5';
+
   const CONFIG = {
     url: window.SPENDWISE_CONFIG?.SUPABASE_URL || '',
     key: window.SPENDWISE_CONFIG?.SUPABASE_ANON_KEY || ''
   };
+
+  const CURRENCIES = {
+    NGN: {locale:'en-NG', symbol:'₦'},
+    GBP: {locale:'en-GB', symbol:'£'},
+    USD: {locale:'en-US', symbol:'$'},
+    EUR: {locale:'en-IE', symbol:'€'},
+    CAD: {locale:'en-CA', symbol:'CA$'},
+    GHS: {locale:'en-GH', symbol:'GH₵'},
+    ZAR: {locale:'en-ZA', symbol:'R'}
+  };
+
   let expenses = [];
   let editingId = null;
   let authMode = 'signin';
   let supabase = null;
   let user = null;
+  let userCurrency = 'NGN';
   let accessMessage = '';
   let sessionCheck = 0;
+  let currencySaving = false;
+  const RATE_CACHE_KEY = 'spendwise_exchange_rates_v1';
+  let exchangeRates = null;
+  let exchangeRatesUpdatedAt = 0;
+  let ratesPromise = null;
+
   const $ = id => document.getElementById(id);
+
+  function money(n, currency=userCurrency) {
+    const code = Object.prototype.hasOwnProperty.call(CURRENCIES,currency) ? currency : 'NGN';
+    const config = CURRENCIES[code] || CURRENCIES.NGN;
+    try {
+      return new Intl.NumberFormat(config.locale, {style:'currency',currency:code,minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
+    } catch { return `${config.symbol}${(Number(n)||0).toFixed(2)}`; }
+  }
+
+  function expenseCurrency(e) {
+    return Object.prototype.hasOwnProperty.call(CURRENCIES,e?.currency_code) ? e.currency_code : 'NGN';
+  }
+
+  function convertAmount(amount, from, to=userCurrency) {
+    const value = Number(amount)||0;
+    if (from === to) return value;
+    if (!exchangeRates || !Number(exchangeRates[from]) || !Number(exchangeRates[to])) return null;
+    return value / Number(exchangeRates[from]) * Number(exchangeRates[to]);
+  }
+
+  function amountInDisplayCurrency(e) {
+    return convertAmount(e.amount, expenseCurrency(e), userCurrency);
+  }
+
+  function moneyExpense(e) {
+    const value = amountInDisplayCurrency(e);
+    return value === null ? money(e.amount, expenseCurrency(e)) + ' (rate unavailable)' : money(value);
+  }
+
+  async function loadExchangeRates(force=false) {
+    if (!force && exchangeRates && Date.now()-exchangeRatesUpdatedAt < 12*60*60*1000) return exchangeRates;
+    if (ratesPromise) return ratesPromise;
+    ratesPromise = (async()=>{
+      try {
+        const cached = JSON.parse(localStorage.getItem(RATE_CACHE_KEY)||'null');
+        if (!force && cached?.rates && cached?.updatedAt && Date.now()-cached.updatedAt < 12*60*60*1000) {
+          exchangeRates=cached.rates; exchangeRatesUpdatedAt=cached.updatedAt; return exchangeRates;
+        }
+      } catch {}
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/USD', {cache:'no-store'});
+        if (!response.ok) throw new Error('Exchange-rate service unavailable');
+        const data = await response.json();
+        if (data.result !== 'success' || data.base_code !== 'USD' || !data.rates) throw new Error('Invalid exchange-rate response');
+        exchangeRates=data.rates; exchangeRatesUpdatedAt=Date.now();
+        try { localStorage.setItem(RATE_CACHE_KEY,JSON.stringify({rates:exchangeRates,updatedAt:exchangeRatesUpdatedAt})); } catch {}
+        return exchangeRates;
+      } catch(error) {
+        console.warn('Exchange rates could not be refreshed:',error);
+        try { const cached=JSON.parse(localStorage.getItem(RATE_CACHE_KEY)||'null'); if(cached?.rates){exchangeRates=cached.rates;exchangeRatesUpdatedAt=cached.updatedAt||0;return exchangeRates;} } catch {}
+        return null;
+      } finally { ratesPromise=null; }
+    })();
+    return ratesPromise;
+  }
 
   function setAccessGate(isSignedIn, message='') {
     document.body.classList.toggle('auth-gate', !isSignedIn);
     $('welcomeMessage').textContent = message;
   }
+
   function clearPrivateExpenses() {
     expenses = [];
-    try { localStorage.removeItem(KEY); } catch {}
+    try {
+      localStorage.removeItem(KEY);
+    } catch {}
     render();
+    updateCurrencyUI();
   }
 
-  // Cloudflare Turnstile public site key. Never put the secret key in this file.
+  // Cloudflare Turnstile public site key.
+  // Never put the secret key in this file.
   const TURNSTILE_SITE_KEY = '0x4AAAAAAFXBIx5kLqdwIn94';
+
   let turnstileWidgetId = null;
   let turnstileToken = '';
   let turnstileRenderAttempts = 0;
   let turnstileRendering = false;
 
-  const icons = {Food:'🍔',Data:'📶',Clothes:'👕',Transport:'🚗',Entertainment:'🎮',Bills:'💡',Shopping:'🛍️',Other:'📦'};
+  const icons = {
+    Food:'◒', Data:'⌁', Clothes:'▱', Transport:'↗',
+    Entertainment:'▣', Bills:'ϟ', Shopping:'▤', Other:'○'
+  };
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '[]');
     expenses = Array.isArray(saved) ? saved : [];
-  } catch { expenses = []; }
+  } catch {
+    expenses = [];
+  }
 
-  const money = n => new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(n)||0);
   const today = () => {
     const d = new Date();
     return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
   };
-  const safe = s => String(s ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+
+  const safe = s => String(s ?? '').replace(/[&<>'"]/g,c=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    "'":'&#39;',
+    '"':'&quot;'
+  }[c]));
+
   function toast(message) {
     $('toast').textContent = message;
     $('toast').classList.add('show');
     clearTimeout(window._spendwiseToast);
-    window._spendwiseToast = setTimeout(()=>$('toast').classList.remove('show'),3200);
+    window._spendwiseToast = setTimeout(
+      ()=>$('toast').classList.remove('show'),
+      3200
+    );
   }
+
   function persist() {
-    try { localStorage.setItem(KEY,JSON.stringify(expenses)); }
-    catch { toast('Browser storage is full. Export or remove some expenses.'); }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(expenses));
+    } catch {
+      toast('Browser storage is full. Export or remove some expenses.');
+    }
   }
+
   function closeDrawerIfMobile() {
     if (window.matchMedia('(max-width: 1023px)').matches) closeMenu();
   }
 
+  function updateCurrencyUI() {
+    const settings = $('currencySettings'), select = $('currencySelect'), hint = $('currencyHint');
+    if (!settings || !select || !hint) return;
+    settings.classList.toggle('hidden', !user);
+    select.value = userCurrency;
+    select.disabled = !user || currencySaving;
+    select.classList.toggle('opacity-60', select.disabled);
+    select.classList.toggle('cursor-not-allowed', select.disabled);
+    hint.textContent = !user ? 'Sign in to manage your display and entry currency.' : currencySaving ? 'Saving your currency preference…' : 'Amounts are displayed in this currency. Existing amounts stay preserved in their original currency.';
+    $('totalCurrencyIcon').textContent = (CURRENCIES[userCurrency] || CURRENCIES.NGN).symbol;
+    if ($('expenseAmountLabel')) $('expenseAmountLabel').textContent = editingId ? `Amount (${expenseCurrency(expenses.find(x=>String(x.id)===String(editingId))||{})})` : `Amount (${userCurrency})`;
+  }
+
   window.showView = function(view) {
-    ['dashboard','expenses','analytics'].forEach(v=>$(`${v}View`).classList.toggle('active',v===view));
-    document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('nav-active',b.dataset.nav===view));
-    document.querySelectorAll('[data-mobile-nav]').forEach(b=>{
-      const active=b.dataset.mobileNav===view;
-      b.classList.toggle('text-emerald-600',active);
-      b.classList.toggle('text-slate-400',!active);
+    ['dashboard','expenses','analytics'].forEach(v=>{
+      $(`${v}View`).classList.toggle('active',v===view);
     });
-    $('pageEyebrow').textContent = view==='dashboard'?'YOUR OVERVIEW':view==='expenses'?'YOUR ACTIVITY':'SPENDING INSIGHTS';
-    $('pageTitle').textContent = view==='dashboard'?'Good day 👋':view==='expenses'?'Transactions':'Analytics';
+
+    document.querySelectorAll('[data-nav]').forEach(b=>{
+      b.classList.toggle('nav-active',b.dataset.nav===view);
+    });
+
+    document.querySelectorAll('[data-mobile-nav]').forEach(b=>{
+      const active = b.dataset.mobileNav === view;
+      b.classList.toggle('text-emerald-600', active);
+      b.classList.toggle('text-slate-400', !active);
+    });
+
+    $('pageEyebrow').textContent =
+      view==='dashboard' ? 'YOUR OVERVIEW' :
+      view==='expenses' ? 'YOUR ACTIVITY' :
+      'SPENDING INSIGHTS';
+
+    $('pageTitle').textContent =
+      view==='dashboard' ? 'Good day 👋' :
+      view==='expenses' ? 'Transactions' :
+      'Analytics';
+
     closeDrawerIfMobile();
-    window.scrollTo({top:0,behavior:'smooth'});
+    window.scrollTo({top:0, behavior:'smooth'});
   };
-  window.openMenu = function() {$('sidebar').classList.remove('-translate-x-full');$('overlay').classList.remove('hidden');};
-  window.closeMenu = function() {$('sidebar').classList.add('-translate-x-full');$('overlay').classList.add('hidden');};
+
+  window.openMenu = function() {
+    $('sidebar').classList.remove('-translate-x-full');
+    $('overlay').classList.remove('hidden');
+  };
+
+  window.closeMenu = function() {
+    $('sidebar').classList.add('-translate-x-full');
+    $('overlay').classList.add('hidden');
+  };
+
   window.toggleTheme = function() {
-    const dark=document.documentElement.classList.toggle('dark');
-    localStorage.setItem('spendwise_theme',dark?'dark':'light');
-    $('themeLabel').textContent=dark?'Dark':'Light';
-    document.querySelector('meta[name="theme-color"]').content=dark?'#020617':'#0f172a';
+    const dark = document.documentElement.classList.toggle('dark');
+
+    localStorage.setItem('spendwise_theme', dark ? 'dark' : 'light');
+    $('themeLabel').textContent = dark ? 'Dark' : 'Light';
+
+    document.querySelector('meta[name="theme-color"]').content =
+      dark ? '#020617' : '#0f172a';
   };
+
   window.clearFilters = function() {
-    $('searchInput').value='';$('categoryFilter').value='';$('sortFilter').value='newest';render();
+    $('searchInput').value = '';
+    $('categoryFilter').value = '';
+    $('sortFilter').value = 'newest';
+    render();
   };
 
   window.openExpense = function(edit) {
     if (!supabase || !user) {
       toast(accessMessage || 'Please sign in with an approved account first.');
-      openAuth();return;
+      openAuth();
+      return;
     }
-    editingId=edit?.id || null;
+
+    editingId = edit?.id || null;
+
     $('expenseForm').reset();
-    $('expenseDate').value=edit?.date || today();
-    $('modalTitle').textContent=edit?'Edit expense':'Add expense';
-    $('saveExpenseButton').textContent=edit?'Update expense':'Save expense';
-    if(edit) {
-      $('expenseName').value=edit.name || '';
-      $('expenseAmount').value=edit.amount;
-      $('expenseCategory').value=edit.category || '';
-      $('expenseNote').value=edit.note || '';
+    $('expenseDate').value = edit?.date || today();
+    $('modalTitle').textContent = edit ? 'Edit expense' : 'Add expense';
+    $('saveExpenseButton').textContent = edit ? 'Update expense' : 'Save expense';
+
+    updateCurrencyUI();
+
+    if (edit) {
+      $('expenseAmountLabel').textContent = `Amount (${expenseCurrency(edit)})`;
+      $('expenseName').value = edit.name || '';
+      $('expenseAmount').value = edit.amount;
+      $('expenseCategory').value = edit.category || '';
+      $('expenseNote').value = edit.note || '';
     }
+
     $('expenseModal').classList.add('open');
-    document.body.style.overflow='hidden';
+    document.body.style.overflow = 'hidden';
+
     setTimeout(()=>$('expenseName').focus({preventScroll:true}),80);
   };
+
   window.closeExpense = function() {
-    $('expenseModal').classList.remove('open');editingId=null;document.body.style.overflow='';
+    $('expenseModal').classList.remove('open');
+    editingId = null;
+    document.body.style.overflow = '';
   };
+
   window.saveExpense = async function(e) {
     e.preventDefault();
-    const name=$('expenseName').value.trim();
-    const amount=Number($('expenseAmount').value);
-    const date=$('expenseDate').value;
-    const category=$('expenseCategory').value;
-    const note=$('expenseNote').value.trim();
-    if(!name||!Number.isFinite(amount)||amount<=0||!date||!category){toast('Please check all required fields.');return;}
-    if(!supabase||!user){toast('Please sign in with an approved account first.');openAuth();return;}
-    const wasEditing=!!editingId;
-    const previous=expenses.map(x=>({...x}));
-    let id=editingId;
-    try { if(!id) id=crypto.randomUUID(); }
-    catch { toast('Could not create an expense ID. Please refresh and try again.');return; }
-    const item={id,name,amount,date,category,note};
-    if(wasEditing) expenses=expenses.map(x=>String(x.id)===String(editingId)?item:x);
-    else expenses.unshift(item);
-    $('saveExpenseButton').disabled=true;
-    $('saveExpenseButton').textContent='Saving…';
+
+    const name = $('expenseName').value.trim();
+    const amount = Number($('expenseAmount').value);
+    const date = $('expenseDate').value;
+    const category = $('expenseCategory').value;
+    const note = $('expenseNote').value.trim();
+
+    if (!name || !Number.isFinite(amount) || amount <= 0 || !date || !category) {
+      toast('Please check all required fields.');
+      return;
+    }
+
+    if (!supabase || !user) {
+      toast('Please sign in with an approved account first.');
+      openAuth();
+      return;
+    }
+
+    const wasEditing = !!editingId;
+    const previous = expenses.map(x=>({...x}));
+
+    let id = editingId;
+
     try {
-      const saved=await cloudUpsert(item);
-      if(!saved){expenses=previous;persist();render();return;}
-      persist();render();closeExpense();
-      toast(wasEditing?'Expense updated successfully.':'Expense saved successfully.');
+      if (!id) id = crypto.randomUUID();
+    } catch {
+      toast('Could not create an expense ID. Please refresh and try again.');
+      return;
+    }
+
+    const oldExpense = wasEditing ? expenses.find(x=>String(x.id)===String(editingId)) : null;
+    const item = {id,name,amount,date,category,note,currency_code:oldExpense ? expenseCurrency(oldExpense) : userCurrency};
+
+    if (wasEditing) {
+      expenses = expenses.map(x=>
+        String(x.id)===String(editingId) ? item : x
+      );
+    } else {
+      expenses.unshift(item);
+    }
+
+    $('saveExpenseButton').disabled = true;
+    $('saveExpenseButton').textContent = 'Saving…';
+
+    try {
+      const saved = await cloudUpsert(item);
+
+      if (!saved) {
+        expenses = previous;
+        persist();
+        render();
+        return;
+      }
+
+      persist();
+      render();
+      updateCurrencyUI();
+      closeExpense();
+
+      toast(wasEditing
+        ? 'Expense updated successfully.'
+        : 'Expense saved successfully.');
+
     } catch(error) {
-      console.error('SAVE EXPENSE ERROR:',error);
-      expenses=previous;persist();render();
+      console.error('SAVE EXPENSE ERROR:', error);
+
+      expenses = previous;
+      persist();
+      render();
+
       toast('Could not save the expense. Please try again.');
+
     } finally {
-      $('saveExpenseButton').disabled=false;
-      $('saveExpenseButton').textContent=wasEditing?'Update expense':'Save expense';
+      $('saveExpenseButton').disabled = false;
+      $('saveExpenseButton').textContent =
+        wasEditing ? 'Update expense' : 'Save expense';
     }
   };
+
   window.deleteExpense = async function(id) {
-    if(!user||!supabase){toast('Please sign in first.');openAuth();return;}
-    if(!confirm('Delete this expense permanently?'))return;
-    const previous=expenses.map(x=>({...x}));
-    expenses=expenses.filter(x=>String(x.id)!==String(id));
-    persist();render();
+    if (!user || !supabase) {
+      toast('Please sign in first.');
+      openAuth();
+      return;
+    }
+
+    if (!confirm('Delete this expense permanently?')) return;
+
+    const previous = expenses.map(x=>({...x}));
+
+    expenses = expenses.filter(x=>String(x.id)!==String(id));
+
+    persist();
+    render();
+    updateCurrencyUI();
+
     try {
-      const deleted=await cloudDelete(id);
-      if(!deleted){expenses=previous;persist();render();return;}
+      const deleted = await cloudDelete(id);
+
+      if (!deleted) {
+        expenses = previous;
+        persist();
+        render();
+        updateCurrencyUI();
+        return;
+      }
+
       toast('Expense deleted successfully.');
+
     } catch(error) {
-      console.error('DELETE EXPENSE ERROR:',error);
-      expenses=previous;persist();render();
+      console.error('DELETE EXPENSE ERROR:', error);
+
+      expenses = previous;
+      persist();
+      render();
+      updateCurrencyUI();
+
       toast('Could not delete the expense. Please try again.');
     }
   };
 
+  async function changeCurrency(newCurrency) {
+    if (!user || !supabase) { toast('Please sign in first.'); updateCurrencyUI(); return; }
+    if (!Object.prototype.hasOwnProperty.call(CURRENCIES,newCurrency)) { toast('Please select a supported currency.'); updateCurrencyUI(); return; }
+    if (newCurrency === userCurrency) { updateCurrencyUI(); return; }
+    const previousCurrency=userCurrency;
+    currencySaving=true; updateCurrencyUI();
+    try {
+      const rates=await loadExchangeRates();
+      if (!rates || !rates[newCurrency] || !rates[previousCurrency]) throw new Error('Exchange rates are unavailable. Check your internet connection and try again.');
+      const {error}=await supabase.rpc('set_my_currency',{p_currency:newCurrency});
+      if(error) throw error;
+      userCurrency=newCurrency;
+      updateCurrencyUI(); render();
+      toast(`Display and new-expense currency changed to ${newCurrency}. Existing amounts are preserved.`);
+    } catch(error) {
+      console.error('CURRENCY UPDATE ERROR:',error);
+      userCurrency=previousCurrency; updateCurrencyUI(); render();
+      toast(error.message || 'Could not save your currency preference.');
+    } finally { currencySaving=false; updateCurrencyUI(); }
+  }
+
+  $('currencySelect').addEventListener('change',async e=>{ await changeCurrency(e.target.value); });
+
+  window.openConverter = async function() {
+    $('converterFrom').value=userCurrency;
+    $('converterTo').value=userCurrency==='USD'?'NGN':'USD';
+    $('converterAmount').value='1';
+    $('converterModal').classList.add('open');
+    document.body.style.overflow='hidden';
+    await updateConverterResult();
+  };
+  window.closeConverter = function() { $('converterModal').classList.remove('open'); document.body.style.overflow=''; };
+  window.swapConverterCurrencies = function() { const from=$('converterFrom').value; $('converterFrom').value=$('converterTo').value; $('converterTo').value=from; updateConverterResult(); };
+  async function updateConverterResult() {
+    const amount=Number($('converterAmount').value), from=$('converterFrom').value, to=$('converterTo').value;
+    $('converterResult').textContent='Calculating…'; $('converterRateInfo').textContent='Fetching the latest available reference rate…';
+    const rates=await loadExchangeRates();
+    if (!rates || !rates[from] || !rates[to]) { $('converterResult').textContent='Unavailable'; $('converterRateInfo').textContent='Could not load exchange rates. Check your connection and try again.'; return; }
+    if (!Number.isFinite(amount) || amount<0) { $('converterResult').textContent='Enter a valid amount'; $('converterRateInfo').textContent='Use zero or a positive amount.'; return; }
+    const converted=convertAmount(amount,from,to);
+    const rate=convertAmount(1,from,to);
+    $('converterResult').textContent=money(converted,to);
+    $('converterRateInfo').textContent=`1 ${from} ≈ ${new Intl.NumberFormat('en-US',{maximumFractionDigits:6}).format(rate)} ${to}. Rates are reference estimates; provider/bank rates may differ.`;
+  }
+  $('converterAmount').addEventListener('input',updateConverterResult);
+  $('converterFrom').addEventListener('change',updateConverterResult);
+  $('converterTo').addEventListener('change',updateConverterResult);
+  window.refreshExchangeRates = async function() { await loadExchangeRates(true); await updateConverterResult(); render(); };
+
   function row(e) {
-    const editArg=JSON.stringify(e).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/'/g,'\\u0027');
-    return `<article class="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-100 p-3.5 transition hover:border-emerald-100 hover:bg-emerald-50/30 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/40">
-      <div class="flex min-w-0 items-center gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-xl dark:bg-emerald-500/10">${icons[e.category]||'📦'}</span><div class="min-w-0"><b class="block break-words text-sm font-extrabold">${safe(e.name)}</b><p class="mt-1 break-words text-xs text-slate-500">${safe(e.category)} <span class="px-1 text-slate-300">•</span> ${safe(e.date)}${e.note?` <span class="px-1 text-slate-300">•</span> ${safe(e.note)}`:''}</p></div></div>
-      <div class="flex items-center justify-between gap-3 pl-1 sm:justify-end sm:pl-0"><b class="text-sm font-black">${money(e.amount)}</b><div class="flex gap-2"><button type="button" onclick='openExpense(${editArg})' class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-emerald-100 dark:bg-slate-800 dark:hover:bg-emerald-500/20">Edit</button><button type="button" onclick="deleteExpense('${safe(e.id)}')" class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10">Delete</button></div></div>
+    const editArg = JSON.stringify(e)
+      .replace(/</g,'\\u003c')
+      .replace(/>/g,'\\u003e')
+      .replace(/'/g,'\\u0027');
+
+    return `<article class="transaction-row">
+      <span class="transaction-icon" aria-hidden="true">${icons[e.category]||'○'}</span>
+      <div class="transaction-main">
+        <b class="transaction-name">${safe(e.name)}</b>
+        <p class="transaction-meta">${safe(e.category)} · ${safe(e.date)}${e.note?` · ${safe(e.note)}`:''}</p>
+      </div>
+      <div class="transaction-actions">
+        <b class="transaction-amount">${moneyExpense(e)}</b>
+        <button type="button" onclick='openExpense(${editArg})' class="row-action row-edit">Edit</button>
+        <button type="button" onclick="deleteExpense('${safe(e.id)}')" class="row-action row-delete">Delete</button>
+      </div>
     </article>`;
   }
+
+  function sumDisplayAmounts(items) {
+    let total=0;
+    for (const item of items) {
+      const value=amountInDisplayCurrency(item);
+      if (value === null) return null;
+      total += value;
+    }
+    return total;
+  }
+
   function cats() {
-    const totals={};
-    expenses.forEach(e=>{totals[e.category]=(totals[e.category]||0)+Number(e.amount||0);});
+    const totals = {};
+    if (expenses.some(e=>amountInDisplayCurrency(e)===null)) return [];
+    expenses.forEach(e=>{
+      totals[e.category] = (totals[e.category] || 0) + amountInDisplayCurrency(e);
+    });
+
     return Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   }
-  function categoryBars(categories) {
-    const max=categories[0]?.[1]||1;
-    return categories.length?categories.slice(0,8).map(([name,value])=>`<div><div class="mb-2 flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm font-bold">${icons[name]||'📦'} ${safe(name)}</span><b class="shrink-0 text-sm">${money(value)}</b></div><div class="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style="width:${Math.max(2,Math.min(100,value/max*100))}%"></div></div></div>`).join(''):'<div class="rounded-2xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:bg-slate-800/50">No category data yet. Add your first expense to see insights.</div>';
-  }
-  window.render = function() {
-    const total=expenses.reduce((s,e)=>s+Number(e.amount||0),0), t=today(), month=t.slice(0,7);
-    $('totalSpent').textContent=money(total);
-    $('todaySpent').textContent=money(expenses.filter(e=>e.date===t).reduce((s,e)=>s+Number(e.amount||0),0));
-    $('monthSpent').textContent=money(expenses.filter(e=>String(e.date||'').startsWith(month)).reduce((s,e)=>s+Number(e.amount||0),0));
-    $('averageSpent').textContent=money(expenses.length?total/expenses.length:0);
 
-    const q=($('searchInput')?.value||'').trim().toLowerCase(), cat=$('categoryFilter')?.value||'', sort=$('sortFilter')?.value||'newest';
-    let list=expenses.filter(e=>{
-      const matches=!q||[e.name,e.category,e.note,e.date].some(v=>String(v||'').toLowerCase().includes(q));
-      return matches&&(!cat||e.category===cat);
+  function categoryBars(categories) {
+    const max = categories[0]?.[1] || 1;
+    const grandTotal = sumDisplayAmounts(expenses) || 1;
+
+    return categories.length
+      ? categories.slice(0,8).map(([name,value])=>`
+        <div class="category-row">
+          <div class="category-top"><span class="category-name"><span class="category-glyph">${icons[name]||'○'}</span> ${safe(name)}</span><b class="category-amount">${money(value)}</b></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,Math.min(100,value/max*100))}%"></div></div>
+          <div class="category-foot"><span>Share of recorded spending</span><span>${Math.round(value / grandTotal * 100)}%</span></div>
+        </div>
+      `).join('')
+      : '<div class="empty-state">No category data yet.<br>Record an expense to start building your spending picture.</div>';
+  }
+
+  window.render = function() {
+    const total = sumDisplayAmounts(expenses);
+    const t = today();
+    const month = t.slice(0,7);
+
+    $('totalSpent').textContent = total===null ? '—' : money(total);
+
+    const todayTotal=sumDisplayAmounts(expenses.filter(e=>e.date===t));
+    $('todaySpent').textContent = todayTotal===null ? '—' : money(todayTotal);
+
+    const monthTotal=sumDisplayAmounts(expenses.filter(e=>String(e.date||'').startsWith(month)));
+    $('monthSpent').textContent = monthTotal===null ? '—' : money(monthTotal);
+
+    $('averageSpent').textContent = total===null ? '—' : money(expenses.length ? total/expenses.length : 0);
+
+    const q = ($('searchInput')?.value||'').trim().toLowerCase();
+    const cat = $('categoryFilter')?.value||'';
+    const sort = $('sortFilter')?.value||'newest';
+
+    let list = expenses.filter(e=>{
+      const matches = !q || [e.name,e.category,e.note,e.date]
+        .some(v=>String(v||'').toLowerCase().includes(q));
+
+      return matches && (!cat || e.category===cat);
     });
+
     list.sort((a,b)=>{
-      if(sort==='highest')return Number(b.amount)-Number(a.amount);
-      if(sort==='lowest')return Number(a.amount)-Number(b.amount);
-      if(sort==='oldest')return String(a.date).localeCompare(String(b.date));
+      if(sort==='highest') return (amountInDisplayCurrency(b)??Number(b.amount))-(amountInDisplayCurrency(a)??Number(a.amount));
+      if(sort==='lowest') return (amountInDisplayCurrency(a)??Number(a.amount))-(amountInDisplayCurrency(b)??Number(b.amount));
+      if(sort==='oldest') return String(a.date).localeCompare(String(b.date));
       return String(b.date).localeCompare(String(a.date));
     });
-    $('allList').innerHTML=list.length?list.map(row).join(''):'<div class="px-4 py-12 text-center"><div class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-2xl dark:bg-emerald-500/10">🧾</div><b class="block">No matching expenses</b><p class="mt-1 text-sm text-slate-500">Try another search or add an expense.</p></div>';
-    $('resultCount').textContent=`${list.length} transaction${list.length===1?'':'s'}`;
-    const recent=[...expenses].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
-    $('recentList').innerHTML=recent.length?recent.map(row).join(''):'<div class="rounded-2xl bg-slate-50 px-4 py-10 text-center dark:bg-slate-800/50"><div class="mb-2 text-3xl">✨</div><b class="text-sm">A fresh start</b><p class="mt-1 text-xs text-slate-500">Record an expense and it will appear here.</p><button type="button" onclick="openExpense()" class="mt-4 text-sm font-extrabold text-emerald-600">＋ Add your first expense</button></div>';
-    const c=cats();
-    $('topCategories').innerHTML=categoryBars(c.slice(0,5));
-    $('chart').innerHTML=categoryBars(c);
-    $('topCategory').textContent=c[0]?.[0]||'—';
-    $('topCategoryAmount').textContent=c[0]?money(c[0][1]):'No data yet';
-    const big=expenses.reduce((a,b)=>!a||Number(b.amount)>Number(a.amount)?b:a,null);
-    $('largestExpense').textContent=big?money(big.amount):'₦0';
-    $('largestExpenseName').textContent=big?big.name:'No data yet';
-    $('transactionTotal').textContent=expenses.length;
+
+    $('allList').innerHTML = list.length
+      ? list.map(row).join('')
+      : '<div class="empty-state">No matching expenses.<br>Try another search or add an expense.</div>';
+
+    $('resultCount').textContent =
+      `${list.length} transaction${list.length===1?'':'s'}`;
+
+    const recent = [...expenses]
+      .sort((a,b)=>String(b.date).localeCompare(String(a.date)))
+      .slice(0,5);
+
+    $('recentList').innerHTML = recent.length
+      ? recent.map(row).join('')
+      : '<div class="empty-state">Nothing recorded yet.<br>Your latest transactions will appear here after you add an expense.<br><button type="button" onclick="openExpense()" class="text-link" style="margin-top:12px">＋ Add your first expense</button></div>';
+
+    const c = cats();
+
+    $('topCategories').innerHTML = categoryBars(c.slice(0,5));
+    $('chart').innerHTML = categoryBars(c);
+
+    $('topCategory').textContent = c[0]?.[0] || '—';
+    $('topCategoryAmount').textContent = c[0] ? money(c[0][1]) : (expenses.length ? 'Waiting for exchange rates' : 'No data yet');
+
+    const big = expenses.reduce(
+      (a,b)=>!a || (amountInDisplayCurrency(b)??Number(b.amount))>(amountInDisplayCurrency(a)??Number(a.amount)) ? b : a,
+      null
+    );
+
+    $('largestExpense').textContent = big ? moneyExpense(big) : (expenses.some(e=>amountInDisplayCurrency(e)===null) ? '—' : money(0));
+    $('largestExpenseName').textContent = big ? big.name : 'No data yet';
+    $('transactionTotal').textContent = expenses.length;
   };
 
   async function cloudLoad() {
-    if(!supabase||!user)return;
-    const {data,error}=await supabase.from('expenses').select('*').eq('user_id',user.id).order('expense_date',{ascending:false});
-    if(error){console.error('CLOUD LOAD ERROR:',error);toast('Could not load cloud expenses. Please refresh and try again.');return;}
-    expenses=(data||[]).map(e=>({id:e.id,name:e.name,amount:Number(e.amount),date:e.expense_date,category:e.category,note:e.note||''}));
-    persist();render();
+    if (!supabase || !user) return;
+
+    const {data,error} = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id',user.id)
+      .order('expense_date',{ascending:false});
+
+    if (error) {
+      console.error('CLOUD LOAD ERROR:',error);
+      toast('Could not load cloud expenses. Please refresh and try again.');
+      updateCurrencyUI();
+      return;
+    }
+
+    expenses = (data||[]).map(e=>({
+      id:e.id,
+      name:e.name,
+      amount:Number(e.amount),
+      date:e.expense_date,
+      category:e.category,
+      note:e.note||'',
+      currency_code:e.currency_code || 'NGN'
+    }));
+
+    persist();
+    render();
+    updateCurrencyUI();
   }
+
   async function cloudUpsert(item) {
-    if(!supabase||!user) return false;
-    const payload={id:item.id,user_id:user.id,name:item.name,amount:item.amount,expense_date:item.date,category:item.category,note:item.note||''};
-    const {error}=await supabase.from('expenses').upsert(payload);
-    if(error){console.error('CLOUD SAVE ERROR:',error);toast('Could not sync this expense. Please try again.');return false;}
+    if (!supabase || !user) return false;
+
+    const payload = {
+      id:item.id,
+      user_id:user.id,
+      name:item.name,
+      amount:item.amount,
+      expense_date:item.date,
+      category:item.category,
+      note:item.note||'',
+      currency_code:item.currency_code || userCurrency
+    };
+
+    const {error} = await supabase.from('expenses').upsert(payload);
+
+    if (error) {
+      console.error('CLOUD SAVE ERROR:',error);
+      toast('Could not sync this expense. Please try again.');
+      return false;
+    }
+
     return true;
   }
+
   async function cloudDelete(id) {
-    if(!supabase||!user) return false;
-    const {error}=await supabase.from('expenses').delete().eq('id',id).eq('user_id',user.id);
-    if(error){console.error('CLOUD DELETE ERROR:',error);toast('Could not delete from cloud. Please try again.');return false;}
+    if (!supabase || !user) return false;
+
+    const {error} = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id',id)
+      .eq('user_id',user.id);
+
+    if (error) {
+      console.error('CLOUD DELETE ERROR:',error);
+      toast('Could not delete from cloud. Please try again.');
+      return false;
+    }
+
     return true;
   }
 
   function updateAccountUI() {
-    if(user){
-      $('accountStatus').textContent=user.email||'Signed in';
-      $('accountHint').textContent='Cloud sync is on.';
-      $('accountButton').textContent='Sign out';
-      $('statusDot').className='h-2.5 w-2.5 rounded-full bg-emerald-400';
+    if (user) {
+      $('accountStatus').textContent = user.email || 'Signed in';
+      $('accountHint').textContent = 'Cloud sync is on.';
+      $('accountButton').textContent = 'Sign out';
+      $('statusDot').className = 'h-2.5 w-2.5 rounded-full bg-emerald-400';
     } else {
-      $('accountStatus').textContent=supabase?'Not signed in':'Local mode';
-      $('accountHint').textContent=accessMessage||(supabase?'Sign in to sync across devices.':'Saved in this browser.');
-      $('accountButton').textContent='Sign in';
-      $('statusDot').className='h-2.5 w-2.5 rounded-full bg-amber-400';
+      $('accountStatus').textContent = supabase ? 'Not signed in' : 'Local mode';
+      $('accountHint').textContent = accessMessage ||
+        (supabase ? 'Sign in to sync across devices.' : 'Saved in this browser.');
+
+      $('accountButton').textContent = 'Sign in';
+      $('statusDot').className = 'h-2.5 w-2.5 rounded-full bg-amber-400';
     }
+
+    updateCurrencyUI();
   }
+
   window.openAuth = function() {
     $('authModal').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -466,6 +722,7 @@ button{touch-action:manipulation}
 
   function renderTurnstile() {
     const container = $('turnstile-container');
+
     if (!container || turnstileWidgetId !== null || turnstileRendering) return;
 
     if (!window.turnstile) {
@@ -473,8 +730,9 @@ button{touch-action:manipulation}
         toast('Security verification did not load. Check your connection and refresh.');
         return;
       }
+
       turnstileRenderAttempts++;
-      setTimeout(renderTurnstile, 500);
+      setTimeout(renderTurnstile,500);
       return;
     }
 
@@ -484,21 +742,24 @@ button{touch-action:manipulation}
     }
 
     turnstileRendering = true;
+
     try {
-      turnstileWidgetId = window.turnstile.render(container, {
-        sitekey: TURNSTILE_SITE_KEY,
-        callback: token => { turnstileToken = token; },
-        'expired-callback': () => {
+      turnstileWidgetId = window.turnstile.render(container,{
+        sitekey:TURNSTILE_SITE_KEY,
+        callback:token=>{
+          turnstileToken = token;
+        },
+        'expired-callback':()=>{
           turnstileToken = '';
           toast('Verification expired. Please verify again.');
         },
-        'error-callback': () => {
+        'error-callback':()=>{
           turnstileToken = '';
           toast('Verification failed to load. Please try again.');
         }
       });
-    } catch (error) {
-      console.error('Turnstile initialization error:', error);
+    } catch(error) {
+      console.error('Turnstile initialization error:',error);
       turnstileWidgetId = null;
       toast('Security verification could not start. Refresh and try again.');
     } finally {
@@ -508,10 +769,12 @@ button{touch-action:manipulation}
 
   function resetTurnstile() {
     turnstileToken = '';
+
     if (window.turnstile && turnstileWidgetId !== null) {
-      try { window.turnstile.reset(turnstileWidgetId); }
-      catch (error) {
-        console.error('Turnstile reset error:', error);
+      try {
+        window.turnstile.reset(turnstileWidgetId);
+      } catch(error) {
+        console.error('Turnstile reset error:',error);
         turnstileWidgetId = null;
         $('turnstile-container').innerHTML = '';
       }
@@ -523,53 +786,148 @@ button{touch-action:manipulation}
     document.body.style.overflow = '';
     resetTurnstile();
   }
+
   function setAuthMode(mode) {
-    authMode=mode;const signup=mode==='signup';
-    $('authTitle').textContent=signup?'Create your SpendWise account':'Welcome to SpendWise';
-    $('authSubtitle').textContent=signup?'Create an account. An admin must approve it before cloud access is enabled.':'Sign in to sync your expenses across devices.';
-    $('authSubmit').textContent=signup?'Create account':'Sign in';
-    $('authToggle').textContent=signup?'I already have an account':'Create an account instead';
-    $('authPassword').autocomplete=signup?'new-password':'current-password';
-  }
-  async function getProfile(currentUser) {
-    const {data,error}=await supabase.from('profiles').select('id,email,full_name,role,status').eq('id',currentUser.id).maybeSingle();
-    if(error){console.error('PROFILE ERROR:',error);return null;}
-    return data;
-  }
-  async function handleSession(session) {
-    const check=++sessionCheck, currentUser=session?.user||null;
-    if(!currentUser){
-      user=null;clearPrivateExpenses();updateAccountUI();setAccessGate(false, accessMessage);return;
-    }
-    const profile=await getProfile(currentUser);
-    if(check!==sessionCheck)return;
-    if(!profile){
-      accessMessage='Your account profile is not ready yet.';
-      toast('Your profile is not ready yet. Contact the administrator if this continues.');
-      user=null;clearPrivateExpenses();updateAccountUI();setAccessGate(false, accessMessage);await supabase.auth.signOut();return;
-    }
-    if(profile.status==='approved'&&(profile.role==='admin'||profile.role==='user')){
-      user=currentUser;accessMessage='';setAccessGate(true);updateAccountUI();await cloudLoad();return;
-    }
-    user=null;
-    const messages={pending:'Your account is waiting for admin approval.',rejected:'Your account application was rejected.',suspended:'Your account has been suspended.'};
-    accessMessage=messages[profile.status]||'Your account cannot access SpendWise yet.';
-    toast(accessMessage);clearPrivateExpenses();setAccessGate(false, accessMessage);updateAccountUI();await supabase.auth.signOut();
-  }
-  async function initCloud() {
-    if(!CONFIG.url||!CONFIG.key||!window.supabase){updateAccountUI();return;}
-    try {
-      supabase=window.supabase.createClient(CONFIG.url,CONFIG.key);
-      updateAccountUI();
-      const {data,error}=await supabase.auth.getSession();
-      if(error)console.error('SESSION ERROR:',error);
-      await handleSession(data?.session);
-      supabase.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>handleSession(session),0);});
-    } catch(error){console.error('Supabase initialization failed:',error);toast('Cloud connection failed. Local mode is available only if cloud is not configured.');}
+    authMode = mode;
+    const signup = mode === 'signup';
+
+    $('authTitle').textContent = signup
+      ? 'Create your SpendWise account'
+      : 'Welcome to SpendWise';
+
+    $('authSubtitle').textContent = signup
+      ? 'Create an account. An admin must approve it before cloud access is enabled.'
+      : 'Sign in to sync your expenses across devices.';
+
+    $('authSubmit').textContent = signup ? 'Create account' : 'Sign in';
+
+    $('authToggle').textContent = signup
+      ? 'I already have an account'
+      : 'Create an account instead';
+
+    $('authPassword').autocomplete = signup ? 'new-password' : 'current-password';
   }
 
-  $('authForm').addEventListener('submit', async e => {
+  async function getProfile(currentUser) {
+    const {data,error} = await supabase
+      .from('profiles')
+      .select('id,email,full_name,role,status,currency')
+      .eq('id',currentUser.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('PROFILE ERROR:',error);
+      return null;
+    }
+
+    return data;
+  }
+
+  async function handleSession(session) {
+    const check = ++sessionCheck;
+    const currentUser = session?.user || null;
+
+    if (!currentUser) {
+      user = null;
+      userCurrency = 'NGN';
+      clearPrivateExpenses();
+      updateAccountUI();
+      setAccessGate(false,accessMessage);
+      return;
+    }
+
+    const profile = await getProfile(currentUser);
+
+    if (check !== sessionCheck) return;
+
+    if (!profile) {
+      accessMessage = 'Your account profile is not ready yet.';
+      toast('Your profile is not ready yet. Contact the administrator if this continues.');
+
+      user = null;
+      userCurrency = 'NGN';
+
+      clearPrivateExpenses();
+      updateAccountUI();
+      setAccessGate(false,accessMessage);
+
+      await supabase.auth.signOut();
+      return;
+    }
+
+    if (
+      profile.status === 'approved' &&
+      (profile.role === 'admin' || profile.role === 'user')
+    ) {
+      user = currentUser;
+
+      userCurrency = Object.prototype.hasOwnProperty.call(
+        CURRENCIES,
+        profile.currency
+      ) ? profile.currency : 'NGN';
+
+      accessMessage = '';
+
+      setAccessGate(true);
+      updateAccountUI();
+
+      await loadExchangeRates();
+      await cloudLoad();
+      render();
+      return;
+    }
+
+    user = null;
+    userCurrency = 'NGN';
+
+    const messages = {
+      pending:'Your account is waiting for admin approval.',
+      rejected:'Your account application was rejected.',
+      suspended:'Your account has been suspended.'
+    };
+
+    accessMessage = messages[profile.status] ||
+      'Your account cannot access SpendWise yet.';
+
+    toast(accessMessage);
+
+    clearPrivateExpenses();
+    setAccessGate(false,accessMessage);
+    updateAccountUI();
+
+    await supabase.auth.signOut();
+  }
+
+  async function initCloud() {
+    if (!CONFIG.url || !CONFIG.key || !window.supabase) {
+      updateAccountUI();
+      return;
+    }
+
+    try {
+      supabase = window.supabase.createClient(CONFIG.url,CONFIG.key);
+
+      updateAccountUI();
+
+      const {data,error} = await supabase.auth.getSession();
+
+      if (error) console.error('SESSION ERROR:',error);
+
+      await handleSession(data?.session);
+
+      supabase.auth.onAuthStateChange((_event,session)=>{
+        setTimeout(()=>handleSession(session),0);
+      });
+
+    } catch(error) {
+      console.error('Supabase initialization failed:',error);
+      toast('Cloud connection failed. Please check your connection and config.js.');
+    }
+  }
+
+  $('authForm').addEventListener('submit',async e=>{
     e.preventDefault();
+
     if (!supabase) {
       toast('Supabase is not configured. Check config.js.');
       return;
@@ -577,10 +935,12 @@ button{touch-action:manipulation}
 
     const email = $('authEmail').value.trim();
     const password = $('authPassword').value;
+
     if (!email || !password) {
       toast('Enter your email and password.');
       return;
     }
+
     if (!turnstileToken) {
       toast('Please complete the security verification first.');
       renderTurnstile();
@@ -588,83 +948,148 @@ button{touch-action:manipulation}
     }
 
     const captchaToken = turnstileToken;
+
     $('authSubmit').disabled = true;
     $('authSubmit').classList.add('opacity-60');
     $('authSubmit').textContent = 'Verifying…';
 
     try {
       if (authMode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
+        const {data,error} = await supabase.auth.signUp({
           email,
           password,
-          options: { captchaToken }
+          options:{captchaToken}
         });
+
         if (error) throw error;
+
         closeAuth();
+
         toast(data.session
           ? 'Account created. Wait for admin approval.'
           : 'Account created. Confirm your email, then wait for admin approval.');
+
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const {error} = await supabase.auth.signInWithPassword({
           email,
           password,
-          options: { captchaToken }
+          options:{captchaToken}
         });
+
         if (error) throw error;
+
         closeAuth();
       }
-    } catch (error) {
-      console.error('AUTH ERROR:', error);
+
+    } catch(error) {
+      console.error('AUTH ERROR:',error);
       toast(error.message || 'Authentication failed. Please try again.');
+
     } finally {
       resetTurnstile();
       $('authSubmit').disabled = false;
       $('authSubmit').classList.remove('opacity-60');
-      $('authSubmit').textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+      $('authSubmit').textContent = authMode === 'signup'
+        ? 'Create account'
+        : 'Sign in';
     }
   });
 
-  $('authToggle').addEventListener('click', () => {
+  $('authToggle').addEventListener('click',()=>{
     setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
     resetTurnstile();
   });
-  $('welcomeSignIn').addEventListener('click',()=>{setAuthMode('signin');openAuth();});
-  $('welcomeSignUp').addEventListener('click',()=>{setAuthMode('signup');openAuth();});
+
+  $('welcomeSignIn').addEventListener('click',()=>{
+    setAuthMode('signin');
+    openAuth();
+  });
+
+  $('welcomeSignUp').addEventListener('click',()=>{
+    setAuthMode('signup');
+    openAuth();
+  });
+
   $('authClose').addEventListener('click',closeAuth);
+
   $('accountButton').addEventListener('click',async()=>{
-    if(user&&supabase){
-      const previousUser=user;
-      user=null;accessMessage='';setAccessGate(false);clearPrivateExpenses();updateAccountUI();
+    if (user && supabase) {
+      user = null;
+      userCurrency = 'NGN';
+      accessMessage = '';
+
+      setAccessGate(false);
+      clearPrivateExpenses();
+      updateAccountUI();
+
       try {
-        const {error}=await supabase.auth.signOut({scope:'local'});
-        if(error) {
+        const {error} = await supabase.auth.signOut({scope:'local'});
+
+        if (error) {
           console.error('SIGN OUT ERROR:',error);
           toast('Dashboard hidden, but sign-out reported an error. Refresh and check your connection.');
           return;
         }
+
         toast('Signed out. Your dashboard is now hidden.');
+
       } catch(error) {
         console.error('SIGN OUT ERROR:',error);
         toast('Dashboard hidden. Sign-out could not reach the server; check your connection.');
       }
+
     } else {
-      setAuthMode('signin');openAuth();
+      setAuthMode('signin');
+      openAuth();
     }
   });
-  ['expenseModal','authModal'].forEach(id=>$(id).addEventListener('click',e=>{
-    if(e.target!==$(id))return;
-    if(id==='expenseModal')closeExpense();else closeAuth();
-  }));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeExpense();closeAuth();closeMenu();}});
-  window.addEventListener('resize',()=>{if(window.matchMedia('(min-width: 1024px)').matches){$('overlay').classList.add('hidden');$('sidebar').classList.remove('-translate-x-full');}});
-  window.addEventListener('load',async()=>{
-    const dark=localStorage.getItem('spendwise_theme')==='dark';
-    document.documentElement.classList.toggle('dark',dark);
-    $('themeLabel').textContent=dark?'Dark':'Light';
-    document.querySelector('meta[name="theme-color"]').content=dark?'#020617':'#0f172a';
-    setAccessGate(false);setAuthMode('signin');showView('dashboard');render();await initCloud();
+
+  ['expenseModal','authModal'].forEach(id=>{
+    $(id).addEventListener('click',e=>{
+      if (e.target !== $(id)) return;
+
+      if (id === 'expenseModal') closeExpense();
+      else closeAuth();
+    });
   });
+
+  document.addEventListener('keydown',e=>{
+    if (e.key === 'Escape') {
+      closeExpense();
+      closeAuth();
+      closeMenu();
+    }
+  });
+
+  window.addEventListener('resize',()=>{
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      $('overlay').classList.add('hidden');
+      $('sidebar').classList.remove('-translate-x-full');
+    }
+  });
+
+  window.addEventListener('load',async()=>{
+    const dark = localStorage.getItem('spendwise_theme') === 'dark';
+
+    document.documentElement.classList.toggle('dark',dark);
+    $('themeLabel').textContent = dark ? 'Dark' : 'Light';
+
+    document.querySelector('meta[name="theme-color"]').content =
+      dark ? '#020617' : '#0f172a';
+
+    setAccessGate(false);
+    setAuthMode('signin');
+    showView('dashboard');
+    render();
+    updateCurrencyUI();
+
+    await initCloud();
+  });
+
 })();
+</script>
+<script>
+window.addEventListener('load',()=>{const d=new Date();const fmt={month:'long',day:'numeric',year:'numeric'};const text=d.toLocaleDateString('en-GB',fmt);const a=document.getElementById('headerDate');const b=document.getElementById('overviewDate');if(a)a.textContent=text;if(b)b.textContent=text.toUpperCase();});
 </script>
 </body>
 </html>
